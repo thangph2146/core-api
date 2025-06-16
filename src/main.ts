@@ -18,9 +18,10 @@ async function bootstrap() {
       'Accept',
       'Authorization',
       'X-API-Key',
-    ],
-  });
+    ],  });
 
-  await app.listen(process.env.PORT ?? 5678);
+  const port = process.env.PORT ?? 5678;
+  await app.listen(port);
+  console.log(`🚀 Application is running on: http://localhost:${port}`);
 }
 bootstrap();
