@@ -1,0 +1,122 @@
+// Base interfaces
+export interface IBaseEntity {
+  id: number;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date | null;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+}
+
+// Blog related interfaces
+export interface IBlogAuthor {
+  id: number;
+  name: string | null;
+  email: string;
+  avatarUrl?: string | null;
+}
+
+export interface IBlogCategory {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string | null;
+  type: string;
+}
+
+export interface IBlogTag {
+  id: number;
+  name: string;
+  slug: string;
+}
+
+export interface IBlogStatus {
+  id: number;
+  name: string;
+  description?: string | null;
+  type: string;
+}
+
+export interface IBlogComment {
+  id: number;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
+  author: IBlogAuthor;
+  replies?: IBlogComment[];
+}
+
+export interface IBlogCounts {
+  likes: number;
+  comments: number;
+  bookmarks: number;
+}
+
+export interface IBlog extends IBaseEntity {
+  title: string;
+  slug: string;
+  summary?: string | null;
+  content: any; // JSON content
+  imageUrl?: string | null;
+  imageTitle?: string | null;
+  statusId?: number | null;
+  publishedAt?: Date | null;
+  authorId: number;
+  categoryId?: number | null;
+  viewCount: number;
+  isFeatured: boolean;
+  allowComments: boolean;
+  
+  // Relations
+  author: IBlogAuthor;
+  category?: IBlogCategory | null;
+  status?: IBlogStatus | null;
+  tags: IBlogTag[];
+  comments?: IBlogComment[];
+  _count?: IBlogCounts;
+}
+
+// Category interfaces
+export interface ICategory extends IBaseEntity {
+  name: string;
+  slug: string;
+  description?: string | null;
+  type: string;
+  parentId?: number | null;
+  
+  // Relations
+  parent?: ICategory | null;
+  children?: ICategory[];
+}
+
+// Tag interfaces
+export interface ITag extends IBaseEntity {
+  name: string;
+  slug: string;
+}
+
+// Status interfaces
+export interface IStatus extends IBaseEntity {
+  name: string;
+  description?: string | null;
+  type: string;
+}
+
+// Pagination interfaces
+export interface IPaginationParams {
+  skip?: number;
+  take?: number;
+  cursor?: any;
+  where?: any;
+  orderBy?: any;
+}
+
+export interface IPaginatedResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}

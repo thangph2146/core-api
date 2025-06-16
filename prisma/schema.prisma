@@ -1,0 +1,406 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Category {
+  id               Int           @id @default(autoincrement())
+  name             String
+  slug             String
+  description      String?
+  type             String
+  parentId         Int?
+  metaTitle        String?
+  metaDescription  String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  deletedAt        DateTime?
+  blogs            Blog[]
+  parent           Category?     @relation("CategoryParentChild", fields: [parentId], references: [id], onDelete: NoAction)
+  children         Category[]    @relation("CategoryParentChild")
+  recruitmentPosts Recruitment[]
+  services         Service[]
+
+  @@unique([name, type])
+  @@unique([slug, type])
+  @@map("categories")
+}
+
+model Tag {
+  id              Int       @id @default(autoincrement())
+  name            String    @unique
+  slug            String    @unique
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  metaTitle       String?
+  metaDescription String?
+  blogs           Blog[]    @relation("BlogTags")
+
+  @@map("tags")
+}
+
+model Status {
+  id               Int              @id @default(autoincrement())
+  name             String
+  description      String?
+  type             String
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  deletedAt        DateTime?
+  metaTitle        String?
+  metaDescription  String?
+  blogs            Blog[]
+  jobApplications  JobApplication[]
+  recruitmentPosts Recruitment[]
+  services         Service[]
+
+  @@unique([name, type])
+  @@map("statuses")
+}
+
+model Permission {
+  id              Int       @id @default(autoincrement())
+  name            String    @unique
+  description     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  metaTitle       String?
+  metaDescription String?
+  roles           Role[]    @relation("RolePermissions")
+
+  @@map("permissions")
+}
+
+model Role {
+  id              Int          @id @default(autoincrement())
+  name            String       @unique
+  description     String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  deletedAt       DateTime?
+  metaTitle       String?
+  metaDescription String?
+  users           User[]
+  permissions     Permission[] @relation("RolePermissions")
+
+  @@map("roles")
+}
+
+model User {
+  id                         Int                 @id @default(autoincrement())
+  email                      String              @unique
+  name                       String?
+  avatarUrl                  String?
+  image                      String?
+  emailVerified              DateTime?
+  hashedPassword             String?
+  roleId                     Int?
+  createdAt                  DateTime            @default(now())
+  updatedAt                  DateTime            @updatedAt
+  deletedAt                  DateTime?
+  metaTitle                  String?
+  metaDescription            String?
+  passwordResetToken         String?             @unique
+  passwordResetTokenExpiry   DateTime?
+  accounts                   Account[]
+  blogs                      Blog[]              @relation("BlogAuthor")
+  likedBlogs                 BlogLike[]          @relation("UserBlogLikes")
+  bookmarkedBlogs            BlogBookmark[]      @relation("UserBlogBookmarks")
+  blogComments               BlogComment[]       @relation("UserBlogComments")
+  contactSubmissionResponses ContactSubmission[] @relation("ContactSubmissionResponses")
+  medias                     Media[]             @relation("UserUploads")
+  recruitments               Recruitment[]       @relation("AuthoredRecruitmentPosts")
+  profile                    UserProfile?
+  userSessions               UserSession[]
+  sessions                   Session[]           // NextAuth sessions
+  role                       Role?               @relation(fields: [roleId], references: [id])
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            Int
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model UserProfile {
+  id              Int       @id @default(autoincrement())
+  userId          Int       @unique
+  bio             String?
+  avatarUrl       String?
+  socialLinks     Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  metaTitle       String?
+  metaDescription String?
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model UserSession {
+  id        String    @id @unique
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
+model Recruitment {
+  id              Int              @id @default(autoincrement())
+  title           String
+  slug            String           @unique
+  description     String?
+  content         Json
+  location        String?
+  salary          String?
+  jobType         String?
+  experienceLevel String?
+  skillsRequired  Json?
+  deadline        DateTime?
+  statusId        Int?
+  publishedAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  authorId        Int
+  categoryId      Int?
+  metaTitle       String?
+  metaDescription String?
+  applications    JobApplication[]
+  author          User             @relation("AuthoredRecruitmentPosts", fields: [authorId], references: [id], onDelete: Cascade)
+  category        Category?        @relation(fields: [categoryId], references: [id])
+  status          Status?          @relation(fields: [statusId], references: [id])
+
+  @@map("recruitment_posts")
+}
+
+model JobApplication {
+  id                Int         @id @default(autoincrement())
+  recruitmentPostId Int
+  applicantName     String
+  applicantEmail    String
+  applicantPhone    String?
+  resumeUrl         String?
+  coverLetter       String?
+  notes             String?
+  statusId          Int?
+  appliedAt         DateTime    @default(now())
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  deletedAt         DateTime?
+  metaTitle         String?
+  metaDescription   String?
+  recruitmentPost   Recruitment @relation(fields: [recruitmentPostId], references: [id], onDelete: Cascade)
+  status            Status?     @relation(fields: [statusId], references: [id])
+
+  @@map("job_applications")
+}
+
+model Service {
+  id              Int       @id @default(autoincrement())
+  name            String
+  slug            String    @unique
+  description     String?
+  content         Json?
+  price           Float?
+  duration        String?
+  statusId        Int?
+  publishedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  categoryId      Int?
+  featuredImageId Int?
+  metaTitle       String?
+  metaDescription String?
+  category        Category? @relation(fields: [categoryId], references: [id])
+  featuredImage   Media?    @relation("ServiceFeaturedImage", fields: [featuredImageId], references: [id])
+  status          Status?   @relation(fields: [statusId], references: [id])
+  galleryImages   Media[]   @relation("ServiceGalleryImages")
+
+  @@map("services")
+}
+
+model Blog {
+  id              Int       @id @default(autoincrement())
+  title           String
+  slug            String    @unique
+  summary         String?
+  content         Json
+  imageUrl        String?
+  imageTitle      String?
+  statusId        Int?
+  publishedAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  authorId        Int
+  categoryId      Int?
+  viewCount       Int       @default(0)
+  isFeatured      Boolean   @default(false)
+  allowComments   Boolean   @default(true)
+  metaTitle       String?
+  metaDescription String?
+  author          User      @relation("BlogAuthor", fields: [authorId], references: [id])
+  category        Category? @relation(fields: [categoryId], references: [id])
+  status          Status?   @relation(fields: [statusId], references: [id])
+  tags            Tag[]     @relation("BlogTags")
+  likes           BlogLike[] @relation("BlogLikes")
+  bookmarks       BlogBookmark[] @relation("BlogBookmarks")
+  comments        BlogComment[] @relation("BlogComments")
+
+  @@map("blog")
+}
+
+model ContactSubmission {
+  id              Int       @id @default(autoincrement())
+  email           String
+  phone           String?
+  subject         String?
+  message         String
+  statusId        Int?
+  submittedAt     DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  ipAddress       String?
+  userAgent       String?
+  notes           String?
+  metaTitle       String?
+  metaDescription String?
+  firstName       String
+  lastName        String
+  respondedAt     DateTime?
+  respondedById   Int?
+  responseMessage String?
+  respondedBy     User?     @relation("ContactSubmissionResponses", fields: [respondedById], references: [id])
+
+  @@map("contact_submissions")
+}
+
+model NewsletterSubscription {
+  id              Int       @id @default(autoincrement())
+  email           String    @unique
+  isSubscribed    Boolean   @default(true)
+  subscribedAt    DateTime  @default(now())
+  unsubscribedAt  DateTime?
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  source          String?
+  firstName       String?
+  lastName        String?
+  tags            Json?
+  metaTitle       String?
+  metaDescription String?
+
+  @@map("newsletter_subscriptions")
+}
+
+model Media {
+  id                     Int       @id @default(autoincrement())
+  fileName               String
+  fileType               String
+  size                   Int
+  url                    String?   @unique
+  altText                String?
+  caption                String?
+  uploadedById           Int?
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  deletedAt              DateTime?
+  metaTitle              String?
+  metaDescription        String?
+  uploadedBy             User?     @relation("UserUploads", fields: [uploadedById], references: [id])
+  serviceAsFeaturedImage Service[] @relation("ServiceFeaturedImage")
+  servicesInGallery      Service[] @relation("ServiceGalleryImages")
+
+  @@map("media")
+}
+
+// NextAuth required models for session management
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       Int
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model BlogLike {
+  id     Int  @id @default(autoincrement())
+  blogId Int
+  userId Int
+  likedAt DateTime @default(now())
+  blog   Blog @relation("BlogLikes", fields: [blogId], references: [id], onDelete: Cascade)
+  user   User @relation("UserBlogLikes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([blogId, userId])
+  @@map("blog_likes")
+}
+
+model BlogBookmark {
+  id          Int      @id @default(autoincrement())
+  blogId      Int
+  userId      Int
+  bookmarkedAt DateTime @default(now())
+  blog        Blog     @relation("BlogBookmarks", fields: [blogId], references: [id], onDelete: Cascade)
+  user        User     @relation("UserBlogBookmarks", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([blogId, userId])
+  @@map("blog_bookmarks")
+}
+
+model BlogComment {
+  id        Int       @id @default(autoincrement())
+  content   String
+  blogId    Int
+  authorId  Int
+  parentId  Int?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  blog      Blog      @relation("BlogComments", fields: [blogId], references: [id], onDelete: Cascade)
+  author    User      @relation("UserBlogComments", fields: [authorId], references: [id], onDelete: Cascade)
+  parent    BlogComment? @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   BlogComment[] @relation("CommentReplies")
+
+  @@map("blog_comments")
+}
