@@ -1,10 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { IRepository } from '../common/interfaces/repository.interface';
-import { IBlog, IPaginationParams, IPaginatedResponse } from '../common/interfaces';
+import {
+  IBlog,
+  IPaginationParams,
+  IPaginatedResponse,
+} from '../common/interfaces';
 import { CreateBlogDto, UpdateBlogDto } from './dto/blog.dto';
 
-export interface IBlogRepository extends IRepository<IBlog, CreateBlogDto, UpdateBlogDto> {
+export interface IBlogRepository
+  extends IRepository<IBlog, CreateBlogDto, UpdateBlogDto> {
   findBySlug(slug: string): Promise<IBlog | null>;
   findFeatured(take?: number): Promise<IBlog[]>;
   incrementViewCount(id: number): Promise<IBlog>;
@@ -17,14 +22,16 @@ export class BlogRepository implements IBlogRepository {
 
   async create(data: CreateBlogDto): Promise<IBlog> {
     const { tagIds, ...blogData } = data;
-    
+
     const result = await this.prisma.blog.create({
       data: {
         ...blogData,
         publishedAt: data.publishedAt ? new Date(data.publishedAt) : null,
-        tags: tagIds ? {
-          connect: tagIds.map(id => ({ id }))
-        } : undefined,
+        tags: tagIds
+          ? {
+              connect: tagIds.map((id) => ({ id })),
+            }
+          : undefined,
       },
       include: this.getIncludeOptions(),
     });
@@ -34,7 +41,7 @@ export class BlogRepository implements IBlogRepository {
 
   async findAll(params: IPaginationParams): Promise<IPaginatedResponse<IBlog>> {
     const { skip = 0, take = 10, where, orderBy } = params;
-    
+
     const [items, total] = await Promise.all([
       this.prisma.blog.findMany({
         skip,
@@ -46,8 +53,8 @@ export class BlogRepository implements IBlogRepository {
       this.prisma.blog.count({ where }),
     ]);
 
-    const mappedItems = items.map(item => this.mapToInterface(item));
-    
+    const mappedItems = items.map((item) => this.mapToInterface(item));
+
     return this.createPaginatedResponse(mappedItems, total, skip, take);
   }
 
@@ -71,15 +78,17 @@ export class BlogRepository implements IBlogRepository {
 
   async update(id: number, data: UpdateBlogDto): Promise<IBlog> {
     const { tagIds, ...blogData } = data;
-    
+
     const result = await this.prisma.blog.update({
       where: { id },
       data: {
         ...blogData,
         publishedAt: data.publishedAt ? new Date(data.publishedAt) : undefined,
-        tags: tagIds ? {
-          set: tagIds.map(id => ({ id }))
-        } : undefined,
+        tags: tagIds
+          ? {
+              set: tagIds.map((id) => ({ id })),
+            }
+          : undefined,
       },
       include: this.getIncludeOptions(),
     });
@@ -98,8 +107,8 @@ export class BlogRepository implements IBlogRepository {
 
   async findFeatured(take: number = 10): Promise<IBlog[]> {
     const results = await this.prisma.blog.findMany({
-      where: { 
-        isFeatured: true, 
+      where: {
+        isFeatured: true,
         publishedAt: { not: null },
         deletedAt: null,
       },
@@ -108,7 +117,7 @@ export class BlogRepository implements IBlogRepository {
       include: this.getIncludeOptions(),
     });
 
-    return results.map(item => this.mapToInterface(item));
+    return results.map((item) => this.mapToInterface(item));
   }
 
   async incrementViewCount(id: number): Promise<IBlog> {
@@ -121,7 +130,9 @@ export class BlogRepository implements IBlogRepository {
     return this.mapToInterface(result);
   }
 
-  async findPublished(params: IPaginationParams): Promise<IPaginatedResponse<IBlog>> {
+  async findPublished(
+    params: IPaginationParams,
+  ): Promise<IPaginatedResponse<IBlog>> {
     const publishedWhere = {
       ...params.where,
       publishedAt: { not: null },

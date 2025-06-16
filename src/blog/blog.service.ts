@@ -82,8 +82,8 @@ export class BlogService {
 
   async findFeatured(limit: number = 10): Promise<any[]> {
     return this.prisma.blog.findMany({
-      where: { 
-        isFeatured: true, 
+      where: {
+        isFeatured: true,
         publishedAt: { not: null },
         deletedAt: null,
       },
@@ -113,12 +113,12 @@ export class BlogService {
 
   async findPublished(page: number = 1, limit: number = 10): Promise<any> {
     const skip = (page - 1) * limit;
-    
+
     const [items, total] = await Promise.all([
       this.prisma.blog.findMany({
         skip,
         take: limit,
-        where: { 
+        where: {
           publishedAt: { not: null },
           deletedAt: null,
         },
@@ -143,8 +143,8 @@ export class BlogService {
           },
         },
       }),
-      this.prisma.blog.count({ 
-        where: { 
+      this.prisma.blog.count({
+        where: {
           publishedAt: { not: null },
           deletedAt: null,
         },

@@ -1,10 +1,4 @@
-import { 
-  Controller, 
-  Get, 
-  Param, 
-  Query, 
-  ParseIntPipe,
-} from '@nestjs/common';
+import { Controller, Get, Param, Query, ParseIntPipe } from '@nestjs/common';
 import { BlogService } from './blog.service';
 
 @Controller('api/blogs')
@@ -14,11 +8,11 @@ export class BlogController {
   @Get()
   async findAll(
     @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10'
+    @Query('limit') limit: string = '10',
   ) {
     const pageNumber = parseInt(page, 10);
     const limitNumber = parseInt(limit, 10);
-    
+
     return await this.blogService.findPublished(pageNumber, limitNumber);
   }
 
@@ -31,11 +25,11 @@ export class BlogController {
   @Get('published')
   async getPublished(
     @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10'
+    @Query('limit') limit: string = '10',
   ) {
     const pageNumber = parseInt(page, 10);
     const limitNumber = parseInt(limit, 10);
-    
+
     return await this.blogService.findPublished(pageNumber, limitNumber);
   }
 
@@ -43,7 +37,7 @@ export class BlogController {
   async findOne(@Param('identifier') identifier: string) {
     // Check if identifier is a number (ID) or string (slug)
     const isNumeric = /^\d+$/.test(identifier);
-    
+
     let blog;
     if (isNumeric) {
       const id = parseInt(identifier, 10);
