@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateUserDto,
@@ -10,6 +10,8 @@ import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+  
   constructor(private readonly prisma: PrismaService) {}
 
   /**
@@ -124,12 +126,11 @@ export class AuthService {
     return user;
   } /**
    * Check if user exists by email
-   */
-  async userExists(email: string): Promise<boolean> {
-    console.log('userExists called with email:', email);
+   */  async userExists(email: string): Promise<boolean> {
+    this.logger.debug(`userExists called with email: ${email}`);
 
     if (!email) {
-      console.log('Email is empty or undefined');
+      this.logger.warn('Email is empty or undefined');
       return false;
     }
 
@@ -139,10 +140,10 @@ export class AuthService {
         select: { id: true },
       });
 
-      console.log('User found:', !!user);
+      this.logger.debug(`User found: ${!!user}`);
       return !!user;
     } catch (error) {
-      console.error('Error in userExists:', error);
+      this.logger.error('Error in userExists:', error);
       throw error;
     }
   }
