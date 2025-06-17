@@ -341,4 +341,111 @@ export class UserService {
       _count: user._count,
     };
   }
+
+  async findDetailById(id: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        role: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+        profile: {
+          select: {
+            id: true,
+            bio: true,
+            avatarUrl: true,
+            socialLinks: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+        },
+        _count: {
+          select: {
+            blogs: true,
+            likedBlogs: true,
+            bookmarkedBlogs: true,
+            blogComments: true,
+            contactSubmissionResponses: true,
+            medias: true,
+            recruitments: true,
+            userSessions: true,
+            sessions: true,
+          },
+        },
+        // Recent blogs (last 5)
+        blogs: {
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            publishedAt: true,
+            viewCount: true,
+            isFeatured: true,
+            status: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        // Recent comments (last 10)
+        blogComments: {
+          take: 10,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            blog: {
+              select: {
+                id: true,
+                title: true,
+                slug: true,
+              },
+            },
+          },
+        },
+        // Recent recruitment posts (last 5)
+        recruitments: {
+          take: 5,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            publishedAt: true,
+            status: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+        // Recent contact submission responses (last 5)
+        contactSubmissionResponses: {
+          take: 5,
+          orderBy: { respondedAt: 'desc' },
+          select: {
+            id: true,
+            email: true,
+            subject: true,
+            respondedAt: true,
+            responseMessage: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    return user;
+  }
 }

@@ -73,6 +73,24 @@ export class UserController {
     }
   }
 
+  @Get(':id/detail')
+  async findDetailById(@Param('id', ParseIntPipe) id: number) {
+    try {
+      const user = await this.userService.findDetailById(id);
+      return {
+        success: true,
+        data: user,
+        message: 'User details retrieved successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Failed to retrieve user details',
+        data: null,
+      };
+    }
+  }
+
   @Post()
   async create(@Body() createUserDto: CreateUserDto) {
     try {
