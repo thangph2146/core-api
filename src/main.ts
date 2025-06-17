@@ -1,8 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  
+  // Use cookie parser
+  app.use(cookieParser());
+  
   // Enable CORS
   app.enableCors({
     origin: [
@@ -18,7 +23,9 @@ async function bootstrap() {
       'Accept',
       'Authorization',
       'X-API-Key',
-    ],  });
+    ],
+  });
+  
   const port = process.env.PORT ?? 5678;
   await app.listen(port);
   // Using console.log for server startup message as it's important startup information

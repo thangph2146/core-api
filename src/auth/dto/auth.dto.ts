@@ -9,6 +9,7 @@ export interface IUser {
   password?: string;
   provider?: string;
   providerId?: string;
+  roleId?: number;
   createdAt: Date;
   updatedAt: Date;
 }

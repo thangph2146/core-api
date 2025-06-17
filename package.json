@@ -4,8 +4,7 @@
   "description": "",
   "author": "",
   "private": true,
-  "license": "UNLICENSED",
-  "scripts": {
+  "license": "UNLICENSED",  "scripts": {
     "build": "prisma generate && nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
@@ -17,7 +16,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "seed:user": "ts-node scripts/create-sample-user.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -26,10 +26,16 @@
     "@nestjs/platform-express": "^11.0.1",
     "@prisma/client": "^6.9.0",
     "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.19",
+    "@types/express-session": "^1.18.2",
+    "@types/jsonwebtoken": "^9.0.10",
     "bcryptjs": "^3.0.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "cookie-parser": "^1.4.7",
+    "express-session": "^1.18.1",
+    "jsonwebtoken": "^9.0.2",
     "prisma": "^6.9.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"

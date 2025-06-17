@@ -11,15 +11,17 @@ import * as bcrypt from 'bcryptjs';
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
-  
+
   constructor(private readonly prisma: PrismaService) {}
 
   /**
    * Find user by email
-   */
-  async findUserByEmail(email: string): Promise<IUser | null> {
+   */ async findUserByEmail(email: string): Promise<IUser | null> {
     const user = await this.prisma.user.findUnique({
       where: { email },
+      include: {
+        role: true,
+      },
     });
 
     return user ? this.mapToInterface(user) : null;
@@ -27,10 +29,12 @@ export class AuthService {
 
   /**
    * Find user by ID
-   */
-  async findUserById(id: number): Promise<IUser | null> {
+   */ async findUserById(id: number): Promise<IUser | null> {
     const user = await this.prisma.user.findUnique({
       where: { id },
+      include: {
+        role: true,
+      },
     });
 
     return user ? this.mapToInterface(user) : null;
@@ -124,9 +128,10 @@ export class AuthService {
     }
 
     return user;
-  } /**
+  }
+  /**
    * Check if user exists by email
-   */  async userExists(email: string): Promise<boolean> {
+   */ async userExists(email: string): Promise<boolean> {
     this.logger.debug(`userExists called with email: ${email}`);
 
     if (!email) {
@@ -149,8 +154,7 @@ export class AuthService {
   }
   /**
    * Map Prisma user to interface
-   */
-  private mapToInterface(user: any): IUser {
+   */ private mapToInterface(user: any): IUser {
     return {
       id: user.id,
       email: user.email,
@@ -160,6 +164,7 @@ export class AuthService {
       password: user.hashedPassword,
       provider: user.provider,
       providerId: user.providerId,
+      roleId: user.roleId,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
