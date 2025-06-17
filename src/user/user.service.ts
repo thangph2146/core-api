@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CreateUserDto, UpdateUserDto, UserQueryDto, UserResponseDto } from './dto/user.dto';
+import {
+  CreateUserDto,
+  UpdateUserDto,
+  UserQueryDto,
+  UserResponseDto,
+} from './dto/user.dto';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
@@ -20,7 +25,8 @@ export class UserService {
     // Ensure numbers are properly converted
     const pageNum = typeof page === 'string' ? parseInt(page, 10) : page;
     const limitNum = typeof limit === 'string' ? parseInt(limit, 10) : limit;
-    const roleIdNum = typeof roleId === 'string' ? parseInt(roleId, 10) : roleId;
+    const roleIdNum =
+      typeof roleId === 'string' ? parseInt(roleId, 10) : roleId;
 
     const skip = (pageNum - 1) * limitNum;
     const take = limitNum;
@@ -35,7 +41,8 @@ export class UserService {
         { name: { contains: search, mode: 'insensitive' } },
         { email: { contains: search, mode: 'insensitive' } },
       ];
-    }    if (roleIdNum) {
+    }
+    if (roleIdNum) {
       where.roleId = roleIdNum;
     }
 
@@ -79,7 +86,8 @@ export class UserService {
         include,
       }),
       this.prisma.user.count({ where }),
-    ]);    const totalPages = Math.ceil(total / limitNum);
+    ]);
+    const totalPages = Math.ceil(total / limitNum);
 
     return {
       data: users.map(this.formatUserResponse),
@@ -181,7 +189,10 @@ export class UserService {
     return this.formatUserResponse(user);
   }
 
-  async update(id: number, updateUserDto: UpdateUserDto): Promise<UserResponseDto> {
+  async update(
+    id: number,
+    updateUserDto: UpdateUserDto,
+  ): Promise<UserResponseDto> {
     const user = await this.prisma.user.update({
       where: { id },
       data: updateUserDto,
@@ -259,25 +270,56 @@ export class UserService {
       where: { id },
     });
   }
-
   async getUserStats() {
-    const [total, active, withRoles, recentlyJoined] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.user.count({ where: { deletedAt: null } }),
-      this.prisma.user.count({ where: { roleId: { not: null } } }),
-      this.prisma.user.count({
-        where: {
-          createdAt: {
-            gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+    const [total, verified, unverified, admins, recentlyJoined] =
+      await Promise.all([
+        // Total users
+        this.prisma.user.count({
+          where: { deletedAt: null },
+        }),
+
+        // Verified users
+        this.prisma.user.count({
+          where: {
+            deletedAt: null,
+            emailVerified: { not: null },
           },
-        },
-      }),
-    ]);
+        }),
+
+        // Unverified users
+        this.prisma.user.count({
+          where: {
+            deletedAt: null,
+            emailVerified: null,
+          },
+        }),
+
+        // Admin users
+        this.prisma.user.count({
+          where: {
+            deletedAt: null,
+            role: {
+              name: { in: ['admin', 'Admin'] },
+            },
+          },
+        }),
+
+        // Recently joined (last 30 days)
+        this.prisma.user.count({
+          where: {
+            deletedAt: null,
+            createdAt: {
+              gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Last 30 days
+            },
+          },
+        }),
+      ]);
 
     return {
       total,
-      active,
-      withRoles,
+      verified,
+      unverified,
+      admins,
       recentlyJoined,
     };
   }
