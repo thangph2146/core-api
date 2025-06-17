@@ -21,12 +21,12 @@ export class AuthService {
       where: { email },
       include: {
         role: true,
+        profile: true,
       },
     });
 
     return user ? this.mapToInterface(user) : null;
   }
-
   /**
    * Find user by ID
    */ async findUserById(id: number): Promise<IUser | null> {
@@ -34,6 +34,7 @@ export class AuthService {
       where: { id },
       include: {
         role: true,
+        profile: true,
       },
     });
 
@@ -61,18 +62,58 @@ export class AuthService {
 
     return this.mapToInterface(user);
   }
-
   /**
-   * Update user
+   * Update user and profile
    */
   async updateUser(id: number, updateUserDto: UpdateUserDto): Promise<IUser> {
+    const { bio, avatarUrl, socialLinks, ...userData } = updateUserDto;
+
+    // Update user data
     const user = await this.prisma.user.update({
       where: { id },
       data: {
-        ...updateUserDto,
+        ...userData,
         updatedAt: new Date(),
       },
+      include: {
+        role: true,
+        profile: true,
+      },
     });
+
+    // Update or create profile if profile data is provided
+    if (
+      bio !== undefined ||
+      avatarUrl !== undefined ||
+      socialLinks !== undefined
+    ) {
+      await this.prisma.userProfile.upsert({
+        where: { userId: id },
+        update: {
+          ...(bio !== undefined && { bio }),
+          ...(avatarUrl !== undefined && { avatarUrl }),
+          ...(socialLinks !== undefined && { socialLinks }),
+          updatedAt: new Date(),
+        },
+        create: {
+          userId: id,
+          bio: bio || null,
+          avatarUrl: avatarUrl || null,
+          socialLinks: socialLinks || null,
+        },
+      });
+
+      // Fetch updated user with profile
+      const updatedUser = await this.prisma.user.findUnique({
+        where: { id },
+        include: {
+          role: true,
+          profile: true,
+        },
+      });
+
+      return this.mapToInterface(updatedUser!);
+    }
 
     return this.mapToInterface(user);
   }
@@ -159,7 +200,8 @@ export class AuthService {
       id: user.id,
       email: user.email,
       name: user.name,
-      image: user.image || user.avatarUrl,
+      image: user.image,
+      avatarUrl: user.avatarUrl || user.profile?.avatarUrl,
       emailVerified: user.emailVerified,
       password: user.hashedPassword,
       provider: user.provider,
@@ -167,6 +209,24 @@ export class AuthService {
       roleId: user.roleId,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
+      profile: user.profile
+        ? {
+            id: user.profile.id,
+            userId: user.profile.userId,
+            bio: user.profile.bio,
+            avatarUrl: user.profile.avatarUrl,
+            socialLinks: user.profile.socialLinks,
+            createdAt: user.profile.createdAt,
+            updatedAt: user.profile.updatedAt,
+          }
+        : undefined,
+      role: user.role
+        ? {
+            id: user.role.id,
+            name: user.role.name,
+            description: user.role.description,
+          }
+        : undefined,
     };
   }
 }

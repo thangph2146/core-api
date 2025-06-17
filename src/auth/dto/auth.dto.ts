@@ -1,10 +1,21 @@
 // Auth interfaces for core-api
 
+export interface IUserProfile {
+  id: number;
+  userId: number;
+  bio?: string;
+  avatarUrl?: string;
+  socialLinks?: any;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface IUser {
   id: number;
   email: string;
   name?: string;
   image?: string;
+  avatarUrl?: string;
   emailVerified?: Date;
   password?: string;
   provider?: string;
@@ -12,6 +23,12 @@ export interface IUser {
   roleId?: number;
   createdAt: Date;
   updatedAt: Date;
+  profile?: IUserProfile;
+  role?: {
+    id: number;
+    name: string;
+    description?: string;
+  };
 }
 
 export interface CreateUserDto {
@@ -19,16 +36,22 @@ export interface CreateUserDto {
   password?: string;
   name?: string;
   image?: string;
+  avatarUrl?: string;
   provider?: string;
   providerId?: string;
   emailVerified?: Date;
+  bio?: string;
+  socialLinks?: any;
 }
 
 export interface UpdateUserDto {
   email?: string;
   name?: string;
   image?: string;
+  avatarUrl?: string;
   emailVerified?: Date;
+  bio?: string;
+  socialLinks?: any;
 }
 
 export interface AuthCredentialsDto {

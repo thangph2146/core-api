@@ -528,4 +528,57 @@ export class AuthController {
       };
     }
   }
+
+  /**
+   * Update current user profile
+   */
+  @Put('me')
+  async updateProfile(
+    @Headers('authorization') authHeader: string,
+    @Req() request: Request,
+    @Body() updateUserDto: UpdateUserDto,
+  ) {
+    try {
+      let token: string | undefined;
+
+      // Try Authorization header first
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      } else if (request.cookies?.accessToken) {
+        // Fallback to cookie
+        token = request.cookies.accessToken;
+      }
+
+      if (!token) {
+        throw new HttpException(
+          'Access token not found',
+          HttpStatus.UNAUTHORIZED,
+        );
+      }
+
+      const payload = this.jwtService.verifyAccessToken(token);
+
+      // Update the user
+      const updatedUser = await this.authService.updateUser(payload.userId, updateUserDto);
+
+      if (!updatedUser) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
+
+      // Return user without password
+      const { password, ...userWithoutPassword } = updatedUser;      return {
+        success: true,
+        data: userWithoutPassword,
+        message: 'Profile updated successfully',
+      };
+    } catch (error: any) {
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException(
+        error.message || 'Failed to update profile',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }
