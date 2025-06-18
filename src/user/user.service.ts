@@ -188,14 +188,17 @@ export class UserService {
 
     return this.formatUserResponse(user);
   }
-
   async update(
     id: number,
     updateUserDto: UpdateUserDto,
   ): Promise<UserResponseDto> {
+    // Extract profile data from updateUserDto if present
+    const { profile, ...userData } = updateUserDto as any;
+
+    // Update user data first
     const user = await this.prisma.user.update({
       where: { id },
-      data: updateUserDto,
+      data: userData,
       include: {
         role: {
           select: {
@@ -218,9 +221,26 @@ export class UserService {
             medias: true,
             recruitments: true,
           },
-        },
-      },
+        },      },
     });
+
+    // Update profile if profile data is provided
+    if (profile) {
+      await this.prisma.userProfile.upsert({
+        where: { userId: id },
+        update: {
+          bio: profile.bio,
+          avatarUrl: profile.avatarUrl,
+          socialLinks: profile.socialLinks,
+        },
+        create: {
+          userId: id,
+          bio: profile.bio || '',
+          avatarUrl: profile.avatarUrl || '',
+          socialLinks: profile.socialLinks || {},
+        },
+      });
+    }
 
     return this.formatUserResponse(user);
   }
@@ -351,16 +371,6 @@ export class UserService {
             id: true,
             name: true,
             description: true,
-          },
-        },
-        profile: {
-          select: {
-            id: true,
-            bio: true,
-            avatarUrl: true,
-            socialLinks: true,
-            createdAt: true,
-            updatedAt: true,
           },
         },
         _count: {
