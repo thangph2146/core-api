@@ -221,7 +221,8 @@ export class UserService {
             medias: true,
             recruitments: true,
           },
-        },      },
+        },
+      },
     });
 
     // Update profile if profile data is provided
@@ -250,6 +251,30 @@ export class UserService {
       where: { id },
       data: { deletedAt: new Date() },
     });
+  }
+
+  async bulkDelete(userIds: number[]): Promise<{
+    deletedCount: number;
+    failedIds: number[];
+  }> {
+    const results = {
+      deletedCount: 0,
+      failedIds: [] as number[],
+    };
+
+    for (const userId of userIds) {
+      try {
+        await this.prisma.user.update({
+          where: { id: userId },
+          data: { deletedAt: new Date() },
+        });
+        results.deletedCount++;
+      } catch (error) {
+        results.failedIds.push(userId);
+      }
+    }
+
+    return results;
   }
 
   async restore(id: number): Promise<UserResponseDto> {

@@ -10,7 +10,6 @@ import {
   ParseIntPipe,
   HttpStatus,
   HttpCode,
-  UseGuards,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto, UpdateUserDto, UserQueryDto } from './dto/user.dto';
@@ -162,6 +161,25 @@ export class UserController {
       return {
         success: false,
         message: error.message || 'Failed to restore user',
+        data: null,
+      };
+    }
+  }
+
+  @Delete('bulk-delete')
+  @HttpCode(HttpStatus.OK)
+  async bulkDelete(@Body() body: { userIds: number[] }) {
+    try {
+      const result = await this.userService.bulkDelete(body.userIds);
+      return {
+        success: true,
+        data: result,
+        message: 'Users deleted successfully',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.message || 'Failed to delete users',
         data: null,
       };
     }
