@@ -7,11 +7,11 @@ import {
   UserResponseDto,
 } from './dto/user.dto';
 import { Prisma } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
-  constructor(private prisma: PrismaService) {}
-  async findAll(query: UserQueryDto) {
+  constructor(private prisma: PrismaService) {}  async findAll(query: UserQueryDto) {
     const {
       page = 1,
       limit = 10,
@@ -20,6 +20,7 @@ export class UserService {
       sortBy = 'createdAt',
       sortOrder = 'desc',
       includeDeleted = false,
+      deleted = false,
     } = query;
 
     // Ensure numbers are properly converted
@@ -32,9 +33,19 @@ export class UserService {
     const take = limitNum;
 
     // Build where clause
-    const where: Prisma.UserWhereInput = {
-      deletedAt: includeDeleted ? undefined : null,
-    };
+    const where: Prisma.UserWhereInput = {};
+
+    // Handle deleted filter
+    if (deleted) {
+      // Only show deleted users
+      where.deletedAt = { not: null };
+    } else if (includeDeleted) {
+      // Show all users (deleted and not deleted)
+      where.deletedAt = undefined;
+    } else {
+      // Only show non-deleted users (default)
+      where.deletedAt = null;
+    }
 
     if (search) {
       where.OR = [
@@ -156,10 +167,35 @@ export class UserService {
 
     return this.formatUserResponse(user);
   }
-
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
+    // Hash password if provided
+    const hashedPassword = createUserDto.password 
+      ? await bcrypt.hash(createUserDto.password, 10)
+      : createUserDto.hashedPassword;
+
+    // Extract profile data and other fields
+    const { password, profile, emailVerified, ...userData } = createUserDto;
+
+    // Prepare user data
+    const userCreateData: any = {
+      ...userData,
+      hashedPassword,
+      emailVerified: emailVerified ? new Date(emailVerified) : null,
+    };
+
+    // If profile data is provided, include it in the create operation
+    if (profile) {
+      userCreateData.profile = {
+        create: {
+          bio: profile.bio || null,
+          avatarUrl: profile.avatarUrl || null,
+          socialLinks: profile.socialLinks || null,
+        },
+      };
+    }
+
     const user = await this.prisma.user.create({
-      data: createUserDto,
+      data: userCreateData,
       include: {
         role: {
           select: {
@@ -250,22 +286,21 @@ export class UserService {
     await this.prisma.user.update({
       where: { id },
       data: { deletedAt: new Date() },
-    });
-  }
+    });  }
 
-  async bulkDelete(userIds: number[]): Promise<{
+  async bulkDelete(userIds: string[]): Promise<{
     deletedCount: number;
-    failedIds: number[];
+    failedIds: string[];
   }> {
     const results = {
       deletedCount: 0,
-      failedIds: [] as number[],
+      failedIds: [] as string[],
     };
 
     for (const userId of userIds) {
       try {
         await this.prisma.user.update({
-          where: { id: userId },
+          where: { id: parseInt(userId) },
           data: { deletedAt: new Date() },
         });
         results.deletedCount++;
@@ -277,8 +312,40 @@ export class UserService {
     return results;
   }
 
+  // Restore a user (undelete)
   async restore(id: number): Promise<UserResponseDto> {
-    const user = await this.prisma.user.update({
+    // Check if user exists and is deleted
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        role: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+        profile: {
+          select: {
+            id: true,
+            bio: true,
+            avatarUrl: true,
+            socialLinks: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    if (!user.deletedAt) {
+      throw new Error('User is not deleted');
+    }
+
+    // Restore user by setting deletedAt to null
+    const restoredUser = await this.prisma.user.update({
       where: { id },
       data: { deletedAt: null },
       include: {
@@ -307,15 +374,102 @@ export class UserService {
       },
     });
 
-    return this.formatUserResponse(user);
+    return restoredUser;
   }
 
-  async hardDelete(id: number): Promise<void> {
+  // Permanently delete a user (hard delete)
+  async permanentDelete(id: number): Promise<void> {
+    // Check if user exists
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Delete user permanently from database
     await this.prisma.user.delete({
       where: { id },
     });
   }
-  async getUserStats() {
+  // Bulk restore users
+  async bulkRestore(userIds: string[]): Promise<{ restoredCount: number; failedIds: string[] }> {
+    const failedIds: string[] = [];
+    let restoredCount = 0;
+
+    for (const id of userIds) {
+      try {
+        await this.restore(parseInt(id));
+        restoredCount++;
+      } catch (error) {
+        failedIds.push(id);
+      }
+    }
+
+    return { restoredCount, failedIds };
+  }
+  // Bulk permanent delete users
+  async bulkPermanentDelete(userIds: string[]): Promise<{ deletedCount: number; failedIds: string[] }> {
+    const failedIds: string[] = [];
+    let deletedCount = 0;    for (const id of userIds) {
+      try {
+        await this.permanentDelete(parseInt(id));
+        deletedCount++;
+      } catch (error) {
+        failedIds.push(id);
+      }
+    }
+
+    return { deletedCount, failedIds };
+  }
+
+  async getUserStats(deleted: boolean = false) {
+    if (deleted) {
+      // Stats for deleted users
+      const [totalDeleted, deletedToday, needsReview] = await Promise.all([
+        // Total deleted users
+        this.prisma.user.count({
+          where: { deletedAt: { not: null } },
+        }),
+
+        // Deleted today
+        this.prisma.user.count({
+          where: {
+            deletedAt: {
+              gte: new Date(new Date().setHours(0, 0, 0, 0)), // Start of today
+              lt: new Date(new Date().setHours(23, 59, 59, 999)), // End of today
+            },
+          },
+        }),
+
+        // Need review (deleted more than 30 days ago)
+        this.prisma.user.count({
+          where: {
+            deletedAt: {
+              lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+              not: null,
+            },
+          },
+        }),
+      ]);
+
+      // Get total users for percentage calculation
+      const total = await this.prisma.user.count();
+
+      return {
+        total,
+        totalDeleted,
+        deletedToday,
+        needsReview,
+        verified: 0, // Not relevant for deleted stats
+        unverified: 0, // Not relevant for deleted stats
+        admins: 0, // Not relevant for deleted stats
+        recentlyJoined: 0, // Not relevant for deleted stats
+      };
+    }
+
+    // Stats for active users (original logic)
     const [total, verified, unverified, admins, recentlyJoined] =
       await Promise.all([
         // Total users

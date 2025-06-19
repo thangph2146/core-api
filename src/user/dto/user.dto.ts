@@ -1,5 +1,16 @@
-import { IsEmail, IsOptional, IsString, IsInt, IsBoolean, IsDateString } from 'class-validator';
-import { Transform } from 'class-transformer';
+import {
+  IsEmail,
+  IsOptional,
+  IsString,
+  IsInt,
+  IsNumber,
+  IsBoolean,
+  IsDateString,
+  IsArray,
+  ValidateNested,
+  IsNumberString,
+} from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 
 export class CreateUserDto {
   @IsEmail()
@@ -7,6 +18,9 @@ export class CreateUserDto {
 
   @IsString()
   name: string;
+
+  @IsString()
+  password: string;
 
   @IsString()
   @IsOptional()
@@ -17,11 +31,23 @@ export class CreateUserDto {
   image?: string;
 
   @IsString()
-  hashedPassword: string;
+  @IsOptional()
+  hashedPassword?: string;
 
   @IsInt()
   @IsOptional()
   roleId?: number;
+
+  @IsDateString()
+  @IsOptional()
+  emailVerified?: string;
+
+  @IsOptional()
+  profile?: {
+    bio?: string;
+    avatarUrl?: string;
+    socialLinks?: Record<string, any>;
+  };
 }
 
 export class UpdateUserDto {
@@ -77,11 +103,15 @@ export class UserQueryDto {
   @IsOptional()
   @IsString()
   sortOrder?: 'asc' | 'desc' = 'desc';
-
   @IsOptional()
   @IsBoolean()
   @Transform(({ value }) => value === 'true')
   includeDeleted?: boolean = false;
+
+  @IsOptional()
+  @IsBoolean()
+  @Transform(({ value }) => value === 'true')
+  deleted?: boolean = false;
 }
 
 export class UserResponseDto {
@@ -123,4 +153,10 @@ export class UserListResponseDto {
     hasNextPage: boolean;
     hasPrevPage: boolean;
   };
+}
+
+export class BulkUserOperationDto {
+  @IsArray()
+  @IsString({ each: true })
+  userIds: string[];
 }
