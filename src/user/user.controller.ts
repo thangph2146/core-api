@@ -14,7 +14,6 @@ import {
   ConflictException,
   BadRequestException,
   NotFoundException,
-  UsePipes,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import {

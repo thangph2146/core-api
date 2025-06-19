@@ -102,6 +102,37 @@ export interface IStatus extends IBaseEntity {
   type: string;
 }
 
+// Role related interfaces
+export interface IRolePermission {
+  id: number;
+  name: string;
+  description?: string | null;
+}
+
+export interface IRole extends IBaseEntity {
+  name: string;
+  description?: string | null;
+  permissions?: IRolePermission[];
+  users?: IBlogAuthor[]; // Reusing IBlogAuthor as basic user info
+  _count?: {
+    users: number;
+    permissions?: number;
+  };
+}
+
+export interface IRoleOption {
+  value: number;
+  label: string;
+}
+
+export interface IRoleStats {
+  totalRoles: number;
+  activeRoles: number;
+  deletedRoles: number;
+  rolesWithUsers: number;
+  rolesWithoutUsers: number;
+}
+
 // Pagination interfaces
 export interface IPaginationParams {
   skip?: number;

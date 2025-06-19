@@ -3,14 +3,11 @@ import {
   IsOptional,
   IsString,
   IsInt,
-  IsNumber,
   IsBoolean,
   IsDateString,
   IsArray,
-  ValidateNested,
-  IsNumberString,
 } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 
 export class CreateUserDto {
   @IsEmail()
