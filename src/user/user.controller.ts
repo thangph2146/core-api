@@ -64,7 +64,7 @@ export class UserController {
   // Bulk operations - placed before parameterized routes to avoid conflicts
   @Delete('bulk-delete')
   @HttpCode(HttpStatus.OK)
-  async bulkDelete(@Body() body: any) {
+  async bulkDelete(@Body() body: BulkUserOperationDto) {
     try {
       console.log('🔍 Bulk Delete - Raw body received:', body);
       console.log('🔍 Bulk Delete - Body type:', typeof body);
@@ -95,7 +95,7 @@ export class UserController {
 
   @Patch('bulk-restore')
   @HttpCode(HttpStatus.OK)
-  async bulkRestore(@Body() body: any) {
+  async bulkRestore(@Body() body: BulkUserOperationDto) {
     try {
       console.log('🔍 Bulk Restore - Raw body received:', body);
       console.log('🔍 Bulk Restore - Body type:', typeof body);
@@ -126,7 +126,7 @@ export class UserController {
 
   @Delete('bulk-permanent-delete')
   @HttpCode(HttpStatus.OK)
-  async bulkPermanentDelete(@Body() body: any) {
+  async bulkPermanentDelete(@Body() body: BulkUserOperationDto) {
     try {
       console.log('🔍 Bulk Permanent Delete - Raw body received:', body);
       console.log('🔍 Bulk Permanent Delete - Body type:', typeof body);
