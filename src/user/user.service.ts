@@ -11,7 +11,8 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
-  constructor(private prisma: PrismaService) {}  async findAll(query: UserQueryDto) {
+  constructor(private prisma: PrismaService) {}
+  async findAll(query: UserQueryDto) {
     const {
       page = 1,
       limit = 10,
@@ -59,23 +60,13 @@ export class UserService {
 
     // Build orderBy
     const orderBy: Prisma.UserOrderByWithRelationInput = {};
-    orderBy[sortBy] = sortOrder;
-
-    // Include related data
+    orderBy[sortBy] = sortOrder;    // Include related data (without profile for list API)
     const include: Prisma.UserInclude = {
       role: {
         select: {
           id: true,
           name: true,
           description: true,
-        },
-      },
-      profile: {
-        select: {
-          id: true,
-          bio: true,
-          avatarUrl: true,
-          socialLinks: true,
         },
       },
       _count: {
@@ -98,10 +89,8 @@ export class UserService {
       }),
       this.prisma.user.count({ where }),
     ]);
-    const totalPages = Math.ceil(total / limitNum);
-
-    return {
-      data: users.map(this.formatUserResponse),
+    const totalPages = Math.ceil(total / limitNum);    return {
+      data: users.map(this.formatUserListResponse),
       meta: {
         total,
         page: pageNum,
@@ -169,7 +158,7 @@ export class UserService {
   }
   async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
     // Hash password if provided
-    const hashedPassword = createUserDto.password 
+    const hashedPassword = createUserDto.password
       ? await bcrypt.hash(createUserDto.password, 10)
       : createUserDto.hashedPassword;
 
@@ -192,9 +181,7 @@ export class UserService {
           socialLinks: profile.socialLinks || null,
         },
       };
-    }
-
-    const user = await this.prisma.user.create({
+    }    const user = await this.prisma.user.create({
       data: userCreateData,
       include: {
         role: {
@@ -202,14 +189,6 @@ export class UserService {
             id: true,
             name: true,
             description: true,
-          },
-        },
-        profile: {
-          select: {
-            id: true,
-            bio: true,
-            avatarUrl: true,
-            socialLinks: true,
           },
         },
         _count: {
@@ -229,9 +208,7 @@ export class UserService {
     updateUserDto: UpdateUserDto,
   ): Promise<UserResponseDto> {
     // Extract profile data from updateUserDto if present
-    const { profile, ...userData } = updateUserDto as any;
-
-    // Update user data first
+    const { profile, ...userData } = updateUserDto as any;    // Update user data first
     const user = await this.prisma.user.update({
       where: { id },
       data: userData,
@@ -241,14 +218,6 @@ export class UserService {
             id: true,
             name: true,
             description: true,
-          },
-        },
-        profile: {
-          select: {
-            id: true,
-            bio: true,
-            avatarUrl: true,
-            socialLinks: true,
           },
         },
         _count: {
@@ -286,7 +255,8 @@ export class UserService {
     await this.prisma.user.update({
       where: { id },
       data: { deletedAt: new Date() },
-    });  }
+    });
+  }
 
   async bulkDelete(userIds: string[]): Promise<{
     deletedCount: number;
@@ -313,8 +283,7 @@ export class UserService {
   }
 
   // Restore a user (undelete)
-  async restore(id: number): Promise<UserResponseDto> {
-    // Check if user exists and is deleted
+  async restore(id: number): Promise<UserResponseDto> {    // Check if user exists and is deleted
     const user = await this.prisma.user.findUnique({
       where: { id },
       include: {
@@ -323,14 +292,6 @@ export class UserService {
             id: true,
             name: true,
             description: true,
-          },
-        },
-        profile: {
-          select: {
-            id: true,
-            bio: true,
-            avatarUrl: true,
-            socialLinks: true,
           },
         },
       },
@@ -354,14 +315,6 @@ export class UserService {
             id: true,
             name: true,
             description: true,
-          },
-        },
-        profile: {
-          select: {
-            id: true,
-            bio: true,
-            avatarUrl: true,
-            socialLinks: true,
           },
         },
         _count: {
@@ -394,7 +347,9 @@ export class UserService {
     });
   }
   // Bulk restore users
-  async bulkRestore(userIds: string[]): Promise<{ restoredCount: number; failedIds: string[] }> {
+  async bulkRestore(
+    userIds: string[],
+  ): Promise<{ restoredCount: number; failedIds: string[] }> {
     const failedIds: string[] = [];
     let restoredCount = 0;
 
@@ -410,9 +365,12 @@ export class UserService {
     return { restoredCount, failedIds };
   }
   // Bulk permanent delete users
-  async bulkPermanentDelete(userIds: string[]): Promise<{ deletedCount: number; failedIds: string[] }> {
+  async bulkPermanentDelete(
+    userIds: string[],
+  ): Promise<{ deletedCount: number; failedIds: string[] }> {
     const failedIds: string[] = [];
-    let deletedCount = 0;    for (const id of userIds) {
+    let deletedCount = 0;
+    for (const id of userIds) {
       try {
         await this.permanentDelete(parseInt(id));
         deletedCount++;
@@ -522,7 +480,6 @@ export class UserService {
       recentlyJoined,
     };
   }
-
   private formatUserResponse(user: any): UserResponseDto {
     return {
       id: user.id,
@@ -536,8 +493,25 @@ export class UserService {
       updatedAt: user.updatedAt,
       deletedAt: user.deletedAt,
       role: user.role,
-      profile: user.profile,
       _count: user._count,
+    };
+  }
+
+  private formatUserListResponse(user: any) {
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+      image: user.image,
+      emailVerified: user.emailVerified,
+      roleId: user.roleId,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      deletedAt: user.deletedAt,
+      role: user.role,
+      _count: user._count,
+      // Note: profile is intentionally excluded for list API
     };
   }
 
