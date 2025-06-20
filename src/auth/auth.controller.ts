@@ -16,6 +16,7 @@ import { Response, Request } from 'express';
 import { AuthService } from './auth.service';
 import { JwtService } from './jwt.service';
 import { SessionService } from './session.service';
+import { Public } from '../common/decorators/roles.decorator';
 import {
   CreateUserDto,
   UpdateUserDto,
@@ -30,10 +31,10 @@ export class AuthController {
     private readonly jwtService: JwtService,
     private readonly sessionService: SessionService,
   ) {}
-
   /**
    * Create new user
    */
+  @Public()
   @Post('user')
   async createUser(@Body() createUserDto: CreateUserDto) {
     try {
@@ -51,7 +52,7 @@ export class AuthController {
       const user = await this.authService.createUser(createUserDto);
 
       // Return user without password
-      const { password, ...userWithoutPassword } = user;
+      const { ...userWithoutPassword } = user;
       return {
         success: true,
         data: userWithoutPassword,
@@ -81,7 +82,7 @@ export class AuthController {
       }
 
       // Return user without password
-      const { password, ...userWithoutPassword } = user;
+      const { ...userWithoutPassword } = user;
       return {
         success: true,
         data: userWithoutPassword,
@@ -110,7 +111,7 @@ export class AuthController {
       }
 
       // Return user without password
-      const { password, ...userWithoutPassword } = user;
+      const { ...userWithoutPassword } = user;
       return {
         success: true,
         data: userWithoutPassword,
@@ -141,7 +142,7 @@ export class AuthController {
       );
 
       // Return user without password
-      const { password, ...userWithoutPassword } = user;
+      const { ...userWithoutPassword } = user;
       return {
         success: true,
         data: userWithoutPassword,
@@ -193,7 +194,7 @@ export class AuthController {
       const user = await this.authService.findOrCreateGoogleUser(googleUserDto);
 
       // Return user without password
-      const { password, ...userWithoutPassword } = user;
+      const { ...userWithoutPassword } = user;
       return {
         success: true,
         data: userWithoutPassword,
@@ -206,10 +207,10 @@ export class AuthController {
       );
     }
   }
-
   /**
    * Check if user exists
    */
+  @Public()
   @Get('user/exists')
   async checkUserExists(@Query('email') email: string) {
     try {
@@ -233,10 +234,10 @@ export class AuthController {
       );
     }
   }
-
   /**
    * Sign in with credentials
    */
+  @Public()
   @Post('signin')
   async signIn(
     @Body() credentials: AuthCredentialsDto,
@@ -254,29 +255,35 @@ export class AuthController {
       const tokens = this.jwtService.generateTokens(user);
 
       // Create session
-      const session = await this.sessionService.createSession(user.id);
+      const session = await this.sessionService.createSession(user.id);      // For development: don't set HTTP-only cookies since frontend and API are on different ports
+      // In production, you'd want to configure proper domain settings
+      if (process.env.NODE_ENV === 'production') {
+        // Set HTTP-only cookies for production
+        response.cookie('accessToken', tokens.accessToken, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'strict',
+          domain: process.env.COOKIE_DOMAIN || undefined,
+          maxAge: 15 * 60 * 1000, // 15 minutes
+        });
 
-      // Set HTTP-only cookies
-      response.cookie('accessToken', tokens.accessToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 15 * 60 * 1000, // 15 minutes
-      });
+        response.cookie('refreshToken', tokens.refreshToken, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'strict',
+          domain: process.env.COOKIE_DOMAIN || undefined,
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
 
-      response.cookie('refreshToken', tokens.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
-
-      response.cookie('sessionId', session.id, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      });
+        response.cookie('sessionId', session.id, {
+          httpOnly: true,
+          secure: true,
+          sameSite: 'strict',
+          domain: process.env.COOKIE_DOMAIN || undefined,
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+      }
+      // For development, let the frontend handle cookie setting
 
       return {
         success: true,
@@ -413,7 +420,7 @@ export class AuthController {
       }
 
       // Return user without password
-      const { password, ...userWithoutPassword } = user;
+      const { ...userWithoutPassword } = user;
       return {
         success: true,
         data: userWithoutPassword,
@@ -457,7 +464,7 @@ export class AuthController {
       }
 
       // Return user without password
-      const { password, ...userWithoutPassword } = user;
+      const { ...userWithoutPassword } = user;
       return {
         success: true,
         data: {
@@ -566,7 +573,7 @@ export class AuthController {
       }
 
       // Return user without password
-      const { password, ...userWithoutPassword } = updatedUser;      return {
+      const { ...userWithoutPassword } = updatedUser;      return {
         success: true,
         data: userWithoutPassword,
         message: 'Profile updated successfully',

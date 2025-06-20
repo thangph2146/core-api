@@ -14,6 +14,9 @@ import {
   ConflictException,
   BadRequestException,
   NotFoundException,
+  ForbiddenException,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import {
@@ -22,11 +25,19 @@ import {
   UserQueryDto,
   BulkUserOperationDto,
 } from './dto/user.dto';
+import { AuthGuard } from '../auth/auth.guard';
+import { UserManagement } from '../common/decorators/permissions.decorator';
+import { ResourceOwnershipService } from '../common/services/resource-ownership.service';
 
 @Controller('api/users')
+@UseGuards(AuthGuard)
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly resourceOwnership: ResourceOwnershipService,
+  ) {}
   @Get()
+  @UserManagement.Read()
   async findAll(@Query() query: UserQueryDto) {
     try {
       const result = await this.userService.findAll(query);
@@ -44,6 +55,7 @@ export class UserController {
     }
   }
   @Get('stats')
+  @UserManagement.Read()
   async getUserStats(@Query() query: { deleted?: string }) {
     try {
       const isDeleted = query.deleted === 'true';
@@ -58,12 +70,13 @@ export class UserController {
         error.message || 'Failed to retrieve user statistics',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
-    }  }
-
+    }
+  }
   // Bulk operations - placed before parameterized routes to avoid conflicts
   @Delete('bulk-delete')
   @HttpCode(HttpStatus.OK)
-  async bulkDelete(@Body() body: BulkUserOperationDto) {
+  @UserManagement.ManageAll()
+  async bulkDelete(@Body() body: BulkUserOperationDto, @Request() req: any) {
     try {
       console.log('🔍 Bulk Delete - Raw body received:', body);
       console.log('🔍 Bulk Delete - Body type:', typeof body);
@@ -76,6 +89,18 @@ export class UserController {
       // Ensure all IDs are strings
       const userIds = body.userIds.map((id) => String(id));
       console.log('🔍 Bulk Delete - Received userIds:', userIds);
+
+      // Check permissions for bulk operations - requires manage all permission
+      const hasPermission = await this.resourceOwnership.canUserAccessMultipleResources(
+        req.user,
+        'users',
+        userIds,
+        'delete'
+      );
+
+      if (!hasPermission.every(Boolean)) {
+        throw new ForbiddenException('Insufficient permissions for bulk delete operation');
+      }
 
       const result = await this.userService.bulkDelete(userIds);
       return {
@@ -155,8 +180,17 @@ export class UserController {
   }
 
   @Get(':id')
-  async findOne(@Param('id', ParseIntPipe) id: number) {
+  @UserManagement.Read()
+  async findOne(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
     try {
+      // Check if user can access this user's data
+      await this.resourceOwnership.requireResourceAccess(
+        req.user,
+        'users',
+        id,
+        'read',
+      );
+
       const user = await this.userService.findOne(id);
       return {
         success: true,
@@ -169,8 +203,17 @@ export class UserController {
   }
 
   @Get(':id/detail')
-  async findDetailById(@Param('id', ParseIntPipe) id: number) {
+  @UserManagement.ViewProfile()
+  async findDetailById(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
     try {
+      // Check if user can view this user's profile
+      await this.resourceOwnership.requireResourceAccess(
+        req.user,
+        'users',
+        id,
+        'view_profile',
+      );
+
       const user = await this.userService.findDetailById(id);
       return {
         success: true,
@@ -210,13 +253,22 @@ export class UserController {
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-  }
-  @Patch(':id')
+  }  @Patch(':id')
+  @UserManagement.Update()
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
+    @Request() req: any,
   ) {
     try {
+      // Check if user can update this user
+      await this.resourceOwnership.requireResourceAccess(
+        req.user,
+        'users',
+        id,
+        'update'
+      );
+
       const user = await this.userService.update(id, updateUserDto);
       return {
         success: true,
@@ -234,11 +286,19 @@ export class UserController {
       throw new BadRequestException(error.message || 'Failed to update user');
     }
   }
-
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  async remove(@Param('id', ParseIntPipe) id: number) {
+  @UserManagement.Delete()
+  async remove(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
     try {
+      // Check if user can delete this user
+      await this.resourceOwnership.requireResourceAccess(
+        req.user,
+        'users',
+        id,
+        'delete'
+      );
+
       await this.userService.remove(id);
       return {
         success: true,
@@ -292,5 +352,6 @@ export class UserController {
         error.message || 'Failed to permanently delete user',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
-    }  }
+    }
+  }
 }

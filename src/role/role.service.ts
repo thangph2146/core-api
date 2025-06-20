@@ -177,8 +177,7 @@ export class RoleService {
         },
       },
     });
-  }
-  async create(createRoleDto: CreateRoleDto): Promise<Role> {
+  }  async create(createRoleDto: CreateRoleDto): Promise<Role> {
     const { permissionIds, ...roleData } = createRoleDto;
 
     // Check if role name already exists
@@ -190,7 +189,7 @@ export class RoleService {
     });
 
     if (existingRole) {
-      throw new ConflictException('Role with this name already exists');
+      throw new ConflictException('Vai trò với tên này đã tồn tại');
     }
 
     // Prepare role data with permissions
@@ -236,7 +235,7 @@ export class RoleService {
       });
 
       if (existingRole) {
-        throw new ConflictException('Role with this name already exists');
+        throw new ConflictException('Vai trò với tên này đã tồn tại');
       }
     }
 

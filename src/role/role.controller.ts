@@ -22,6 +22,11 @@ import {
   BulkRoleOperationDto,
 } from './dto/role.dto';
 import { AuthGuard } from '../auth/auth.guard';
+import {
+  RoleManagement,
+  SuperAdminOnly,
+  RequirePermissions,
+} from '../common/decorators/roles.decorator';
 
 @Controller('api/roles')
 @UseGuards(AuthGuard)
@@ -29,6 +34,7 @@ export class RoleController {
   constructor(private readonly roleService: RoleService) {}
 
   @Get()
+  @RoleManagement.Read()
   async findAll(@Query() query: RoleQueryDto) {
     try {
       const result = await this.roleService.findAll(query);
@@ -36,17 +42,18 @@ export class RoleController {
         success: true,
         data: result.data,
         meta: result.meta,
-        message: 'Roles retrieved successfully',
+        message: 'Danh sách vai trò được tải thành công',
       };
     } catch (error) {
       throw new HttpException(
-        error.message || 'Failed to retrieve roles',
+        error.message || 'Không thể tải danh sách vai trò',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
 
   @Get('stats')
+  @RoleManagement.Read()
   async getRoleStats(@Query() query: { deleted?: string }) {
     try {
       const isDeleted = query.deleted === 'true';
@@ -100,28 +107,30 @@ export class RoleController {
       );
     }
   }
-
   @Post()
+  @RoleManagement.Create()
   async create(@Body() createRoleDto: CreateRoleDto) {
     try {
       const role = await this.roleService.create(createRoleDto);
       return {
         success: true,
         data: role,
-        message: 'Role created successfully',
+        message: `Vai trò "${role.name}" đã được tạo thành công`,
       };
     } catch (error) {
       if (error instanceof ConflictException) {
-        throw error;
+        throw new ConflictException(
+          `Vai trò với tên "${createRoleDto.name}" đã tồn tại`,
+        );
       }
       throw new HttpException(
-        error.message || 'Failed to create role',
+        error.message || 'Không thể tạo vai trò',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
-
   @Patch(':id')
+  @RoleManagement.Update()
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateRoleDto: UpdateRoleDto,
@@ -131,7 +140,7 @@ export class RoleController {
       return {
         success: true,
         data: role,
-        message: 'Role updated successfully',
+        message: `Vai trò "${role.name}" đã được cập nhật thành công`,
       };
     } catch (error) {
       if (
@@ -141,20 +150,20 @@ export class RoleController {
         throw error;
       }
       throw new HttpException(
-        error.message || 'Failed to update role',
+        error.message || 'Không thể cập nhật vai trò',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
-
   @Delete(':id')
+  @RoleManagement.Delete()
   async remove(@Param('id', ParseIntPipe) id: number) {
     try {
       const role = await this.roleService.delete(id);
       return {
         success: true,
         data: role,
-        message: 'Role deleted successfully',
+        message: `Vai trò "${role.name}" đã được xóa thành công`,
       };
     } catch (error) {
       if (
@@ -164,20 +173,20 @@ export class RoleController {
         throw error;
       }
       throw new HttpException(
-        error.message || 'Failed to delete role',
+        error.message || 'Không thể xóa vai trò',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
-
   @Patch(':id/restore')
+  @RoleManagement.Update()
   async restore(@Param('id', ParseIntPipe) id: number) {
     try {
       const role = await this.roleService.restore(id);
       return {
         success: true,
         data: role,
-        message: 'Role restored successfully',
+        message: `Vai trò "${role.name}" đã được khôi phục thành công`,
       };
     } catch (error) {
       if (
@@ -187,7 +196,7 @@ export class RoleController {
         throw error;
       }
       throw new HttpException(
-        error.message || 'Failed to restore role',
+        error.message || 'Không thể khôi phục vai trò',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
@@ -195,7 +204,9 @@ export class RoleController {
   @Post('bulk-delete')
   async bulkDelete(@Body() bulkRoleOperationDto: BulkRoleOperationDto) {
     try {
-      const result = await this.roleService.bulkDelete(bulkRoleOperationDto.roleIds);
+      const result = await this.roleService.bulkDelete(
+        bulkRoleOperationDto.roleIds,
+      );
       return {
         success: true,
         data: result,
@@ -215,11 +226,14 @@ export class RoleController {
   @Post('bulk-restore')
   async bulkRestore(@Body() bulkRoleOperationDto: BulkRoleOperationDto) {
     try {
-      const result = await this.roleService.bulkRestore(bulkRoleOperationDto.roleIds);
+      const result = await this.roleService.bulkRestore(
+        bulkRoleOperationDto.roleIds,
+      );
       return {
         success: true,
         data: result,
-        message: `${result.restoredCount} roles restored successfully`,      };
+        message: `${result.restoredCount} roles restored successfully`,
+      };
     } catch (error) {
       throw new HttpException(
         error.message || 'Failed to restore roles',
@@ -229,9 +243,13 @@ export class RoleController {
   }
 
   @Post('bulk-permanent-delete')
-  async bulkPermanentDelete(@Body() bulkRoleOperationDto: BulkRoleOperationDto) { 
+  async bulkPermanentDelete(
+    @Body() bulkRoleOperationDto: BulkRoleOperationDto,
+  ) {
     try {
-      const result = await this.roleService.bulkPermanentDelete(bulkRoleOperationDto.roleIds);
+      const result = await this.roleService.bulkPermanentDelete(
+        bulkRoleOperationDto.roleIds,
+      );
       return {
         success: true,
         data: result,
@@ -243,5 +261,5 @@ export class RoleController {
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-  } 
+  }
 }

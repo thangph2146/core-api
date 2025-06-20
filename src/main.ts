@@ -7,8 +7,7 @@ async function bootstrap() {
   
   // Use cookie parser
   app.use(cookieParser());
-  
-  // Enable CORS
+    // Enable CORS with security headers
   app.enableCors({
     origin: [
       'http://localhost:3000',
@@ -23,6 +22,17 @@ async function bootstrap() {
       'Accept',
       'Authorization',
       'X-API-Key',
+      'X-Request-ID',
+      'X-CSRF-Token',
+      'X-User-Agent',
+      'X-Forwarded-For',
+      'Cache-Control',
+    ],
+    exposedHeaders: [
+      'X-Request-ID',
+      'X-RateLimit-Limit',
+      'X-RateLimit-Remaining',
+      'X-RateLimit-Reset',
     ],
   });
   

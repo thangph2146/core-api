@@ -17,7 +17,6 @@ export interface IUser {
   image?: string;
   avatarUrl?: string;
   emailVerified?: Date;
-  password?: string;
   provider?: string;
   providerId?: string;
   roleId?: number;
@@ -28,6 +27,7 @@ export interface IUser {
     id: number;
     name: string;
     description?: string;
+    permissions?: string[];
   };
 }
 
