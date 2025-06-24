@@ -79,6 +79,11 @@ export class PermissionQueryDto {
 	@IsOptional()
 	@IsBoolean()
 	@Transform(({ value }) => value === 'true')
+	includeDeleted?: boolean = false;
+
+	@IsOptional()
+	@IsBoolean()
+	@Transform(({ value }) => value === 'true')
 	deleted?: boolean = false;
 }
 

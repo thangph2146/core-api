@@ -165,7 +165,7 @@ export class AuthService {
   }
 
   /**
-   * Find or create a user from a Google login.
+   * Find or create a user from a Google signin.
    */
   async findOrCreateGoogleUser(googleUserDto: GoogleUserDto): Promise<User> {
     const existingUser = await this.findUserByEmail(googleUserDto.email);
