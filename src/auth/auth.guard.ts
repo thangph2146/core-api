@@ -12,8 +12,12 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   PUBLIC_KEY,
   PERMISSIONS_KEY,
-} from '../common/decorators/roles.decorator';
+  OWNERSHIP_KEY,
+} from '../common/decorators/permissions.decorator';
 import { PERMISSIONS } from '../common/constants/permissions.constants';
+import { AuthenticatedUser } from '../common/interfaces';
+
+type ResourceType = 'BLOGS' | 'MEDIA' | 'RECRUITMENT';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -123,12 +127,80 @@ export class AuthGuard implements CanActivate {
         }
       }
 
+      // Check for resource ownership if required
+      const ownershipRule = this.reflector.getAllAndOverride<{
+        resourceType: ResourceType;
+      }>(OWNERSHIP_KEY, [context.getHandler(), context.getClass()]);
+
+      if (ownershipRule) {
+        const resourceId = request.params.id;
+        if (!resourceId) {
+          // This should not happen if the decorator is on a route with an :id param
+          throw new ForbiddenException(
+            'Ownership check failed: Resource ID not found in request.',
+          );
+        }
+
+        const isOwner = await this.checkResourceOwnership(
+          request.user,
+          ownershipRule.resourceType,
+          parseInt(resourceId, 10),
+        );
+
+        if (!isOwner) {
+          throw new ForbiddenException(
+            'Access denied. You do not have ownership of this resource.',
+          );
+        }
+      }
+
       return true;
     } catch (error) {
       if (error instanceof ForbiddenException) {
         throw error;
       }
       throw new UnauthorizedException('Token không hợp lệ hoặc đã hết hạn');
+    }
+  }
+
+  private async checkResourceOwnership(
+    user: AuthenticatedUser,
+    resourceType: ResourceType,
+    resourceId: number,
+  ): Promise<boolean> {
+    // Super Admins can do anything
+    if (user.permissions.includes(PERMISSIONS.ADMIN.FULL_ACCESS)) {
+      return true;
+    }
+
+    // Users with 'manage' permission for the resource type can bypass ownership check
+    const managePermission = `${resourceType.toLowerCase()}:manage`;
+    if (user.permissions.includes(managePermission)) {
+      return true;
+    }
+
+    let resource;
+    switch (resourceType) {
+      case 'BLOGS':
+        resource = await this.prisma.blog.findUnique({
+          where: { id: resourceId },
+          select: { authorId: true },
+        });
+        return resource?.authorId === user.id;
+      case 'MEDIA':
+        resource = await this.prisma.media.findUnique({
+          where: { id: resourceId },
+          select: { uploadedById: true },
+        });
+        return resource?.uploadedById === user.id;
+      case 'RECRUITMENT':
+        resource = await this.prisma.recruitment.findUnique({
+          where: { id: resourceId },
+          select: { authorId: true },
+        });
+        return resource?.authorId === user.id;
+      default:
+        return false;
     }
   }
 }

@@ -1,23 +1,50 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  UnauthorizedException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateUserDto,
   UpdateUserDto,
   GoogleUserDto,
-  IUser,
 } from './dto/auth.dto';
 import * as bcrypt from 'bcryptjs';
+import { User } from '@prisma/client';
+import { SessionService } from './session.service';
+import { JwtService } from './jwt.service';
+
+// Define a type for the user object without the password.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type SafeUser = Omit<User, 'hashedPassword' | 'passwordResetToken'>;
 
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly sessionService: SessionService,
+    private readonly jwtService: JwtService,
+  ) {}
 
   /**
-   * Find user by email
-   */ async findUserByEmail(email: string): Promise<IUser | null> {
-    const user = await this.prisma.user.findUnique({
+   * Creates a 'safe' user object by removing sensitive fields.
+   * @param user The full user object from Prisma.
+   * @returns A user object without the hashed password.
+   */
+  private getSafeUser(user: User): SafeUser {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { hashedPassword, passwordResetToken, ...safeUser } = user;
+    return safeUser;
+  }
+
+  /**
+   * Find user by email, returning the full Prisma User object.
+   */
+  async findUserByEmail(email: string): Promise<User | null> {
+    return this.prisma.user.findUnique({
       where: { email },
       include: {
         role: {
@@ -28,13 +55,13 @@ export class AuthService {
         profile: true,
       },
     });
-
-    return user ? this.mapToInterface(user) : null;
   }
+
   /**
-   * Find user by ID
-   */ async findUserById(id: number): Promise<IUser | null> {
-    const user = await this.prisma.user.findUnique({
+   * Find user by ID, returning the full Prisma User object.
+   */
+  async findUserById(id: number): Promise<User | null> {
+    return this.prisma.user.findUnique({
       where: { id },
       include: {
         role: {
@@ -45,51 +72,44 @@ export class AuthService {
         profile: true,
       },
     });
-
-    return user ? this.mapToInterface(user) : null;
   }
+
   /**
-   * Create new user
+   * Create a new user.
    */
-  async createUser(createUserDto: CreateUserDto): Promise<IUser> {
+  async createUser(createUserDto: CreateUserDto): Promise<User> {
     const { password, ...userData } = createUserDto;
 
-    let hashedPassword: string | undefined;
-    if (password) {
-      hashedPassword = await bcrypt.hash(password, 12);
-    }
+    const hashedPassword = password ? await bcrypt.hash(password, 12) : null;
 
-    const user = await this.prisma.user.create({
+    return this.prisma.user.create({
       data: {
         ...userData,
         hashedPassword,
-        createdAt: new Date(),
-        updatedAt: new Date(),
       },
     });
-
-    return this.mapToInterface(user);
   }
+
   /**
-   * Update user and profile
+   * Update user and profile.
    */
-  async updateUser(id: number, updateUserDto: UpdateUserDto): Promise<IUser> {
+  async updateUser(id: number, updateUserDto: UpdateUserDto): Promise<User> {
     const { bio, avatarUrl, socialLinks, ...userData } = updateUserDto;
 
-    // Update user data
-    const user = await this.prisma.user.update({
+    // First, ensure the user exists
+    const existingUser = await this.prisma.user.findUnique({ where: { id } });
+    if (!existingUser) {
+      throw new NotFoundException(`User with ID ${id} not found.`);
+    }
+
+    await this.prisma.user.update({
       where: { id },
       data: {
         ...userData,
         updatedAt: new Date(),
       },
-      include: {
-        role: true,
-        profile: true,
-      },
     });
 
-    // Update or create profile if profile data is provided
     if (
       bio !== undefined ||
       avatarUrl !== undefined ||
@@ -98,154 +118,121 @@ export class AuthService {
       await this.prisma.userProfile.upsert({
         where: { userId: id },
         update: {
-          ...(bio !== undefined && { bio }),
-          ...(avatarUrl !== undefined && { avatarUrl }),
-          ...(socialLinks !== undefined && { socialLinks }),
+          bio,
+          avatarUrl,
+          socialLinks,
           updatedAt: new Date(),
         },
         create: {
           userId: id,
-          bio: bio || null,
-          avatarUrl: avatarUrl || null,
-          socialLinks: socialLinks || null,
+          bio,
+          avatarUrl,
+          socialLinks,
         },
       });
-
-      // Fetch updated user with profile
-      const updatedUser = await this.prisma.user.findUnique({
-        where: { id },
-        include: {
-          role: true,
-          profile: true,
-        },
-      });
-
-      return this.mapToInterface(updatedUser!);
     }
 
-    return this.mapToInterface(user);
+    // Return the fully updated user with relations
+    const updatedUser = await this.findUserById(id);
+    if (!updatedUser) {
+      // This should theoretically never happen if the initial check passes
+      throw new NotFoundException(`User with ID ${id} disappeared during update.`);
+    }
+    return updatedUser;
   }
+
   /**
-   * Authenticate user with credentials
+   * Authenticate user with credentials.
+   * Returns the full user object on success, including hashed password for internal use.
    */
   async validateCredentials(
     email: string,
-    password: string,
-  ): Promise<IUser | null> {
-    const user = await this.prisma.user.findUnique({
-      where: { email },
-      include: {
-        role: {
-          include: {
-            permissions: true,
-          },
-        },
-        profile: true,
-      },
-    });
+    password?: string,
+  ): Promise<User | null> {
+    const user = await this.findUserByEmail(email);
 
-    if (!user || !user.hashedPassword) {
-      return null;
+    if (!user) return null;
+
+    // Support for passwordless sign-in (e.g., Google)
+    if (!password) {
+      return user.hashedPassword ? null : user;
     }
+
+    if (!user.hashedPassword) return null;
 
     const isPasswordValid = await bcrypt.compare(password, user.hashedPassword);
-    if (!isPasswordValid) {
-      return null;
-    }
-
-    return this.mapToInterface(user);
+    return isPasswordValid ? user : null;
   }
 
   /**
-   * Find or create Google user
+   * Find or create a user from a Google login.
    */
-  async findOrCreateGoogleUser(googleUserDto: GoogleUserDto): Promise<IUser> {
-    // Try to find existing user by email
-    let user = await this.findUserByEmail(googleUserDto.email);
+  async findOrCreateGoogleUser(googleUserDto: GoogleUserDto): Promise<User> {
+    const existingUser = await this.findUserByEmail(googleUserDto.email);
 
-    if (user) {
-      // Update existing user with Google info if needed
-      if (!user.provider || user.provider !== 'google') {
-        user = await this.updateUser(user.id, {
-          name: googleUserDto.name || user.name,
-          image: googleUserDto.image || user.image,
-          emailVerified: googleUserDto.emailVerified || user.emailVerified,
-        });
-      }
-    } else {
-      // Create new user
-      user = await this.createUser({
-        email: googleUserDto.email,
-        name: googleUserDto.name,
-        image: googleUserDto.image,
-        provider: googleUserDto.provider,
-        providerId: googleUserDto.providerId,
-        emailVerified: googleUserDto.emailVerified,
-      });
+    if (existingUser) {
+      return existingUser;
     }
 
-    return user;
+    return this.createUser({
+      email: googleUserDto.email,
+      name: googleUserDto.name,
+      image: googleUserDto.image,
+      emailVerified: googleUserDto.emailVerified ? new Date() : undefined,
+      provider: 'google',
+      providerId: googleUserDto.providerId,
+    });
   }
+
   /**
-   * Check if user exists by email
-   */ async userExists(email: string): Promise<boolean> {
-    this.logger.debug(`userExists called with email: ${email}`);
-
-    if (!email) {
-      this.logger.warn('Email is empty or undefined');
-      return false;
-    }
-
-    try {
-      const user = await this.prisma.user.findUnique({
-        where: { email },
-        select: { id: true },
-      });
-
-      this.logger.debug(`User found: ${!!user}`);
-      return !!user;
-    } catch (error) {
-      this.logger.error('Error in userExists:', error);
-      throw error;
-    }
+   * Check if a user exists by email.
+   */
+  async userExists(email: string): Promise<boolean> {
+    if (!email) return false;
+    const userCount = await this.prisma.user.count({ where: { email } });
+    return userCount > 0;
   }
+
   /**
-   * Map Prisma user to interface
-   */ private mapToInterface(user: any): IUser {
+   * Refreshes a user's session using a refresh token (session ID).
+   * Implements a rotating refresh token strategy.
+   */
+  async refreshUserToken(oldRefreshToken: string): Promise<{
+    user: User;
+    accessToken: string;
+    refreshToken: string; // This is the new session ID
+  }> {
+    if (!oldRefreshToken) {
+      throw new UnauthorizedException('Refresh token not found');
+    }
+
+    const oldSession = await this.sessionService.getSession(oldRefreshToken);
+    if (!oldSession) {
+      // It's important to delete the session if it's invalid or expired
+      await this.sessionService.deleteSession(oldRefreshToken);
+      throw new UnauthorizedException('Invalid or expired session');
+    }
+
+    // Concurrently delete old session and get user
+    const [_, user] = await Promise.all([
+      this.sessionService.deleteSession(oldSession.id),
+      this.findUserById(oldSession.userId),
+    ]);
+
+    if (!user) {
+      throw new NotFoundException('User for this session not found');
+    }
+
+    // Create a new session (which gives a new refresh token)
+    const newSession = await this.sessionService.createSession(user.id);
+
+    // Create a new access token
+    const accessToken = this.jwtService.generateAccessToken(user);
+
     return {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      image: user.image,
-      avatarUrl: user.avatarUrl || user.profile?.avatarUrl,
-      emailVerified: user.emailVerified,
-      provider: user.provider,
-      providerId: user.providerId,
-      roleId: user.roleId,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
-      profile: user.profile
-        ? {
-            id: user.profile.id,
-            userId: user.profile.userId,
-            bio: user.profile.bio,
-            avatarUrl: user.profile.avatarUrl,
-            socialLinks: user.profile.socialLinks,
-            createdAt: user.profile.createdAt,
-            updatedAt: user.profile.updatedAt,
-          }
-        : undefined,
-      role: user.role
-        ? {
-            id: user.role.id,
-            name: user.role.name,
-            description: user.role.description,
-            permissions:
-              user.role.permissions?.map(
-                (permission: any) => permission.name,
-              ) || [],
-          }
-        : undefined,
+      user,
+      accessToken,
+      refreshToken: newSession.id,
     };
   }
 }

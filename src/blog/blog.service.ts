@@ -1,417 +1,271 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
+import { AdminBlogQueryDto, CreateBlogDto, UpdateBlogDto } from './dto/blog.dto';
+import { IPaginatedResponse } from 'src/common/interfaces';
+
+// This defines the full structure of the blog object we want to return
+const blogInclude: Prisma.BlogInclude = {
+	author: {
+		select: {
+			id: true,
+			name: true,
+			email: true,
+		},
+	},
+	category: true,
+	status: true,
+	tags: true,
+	_count: {
+		select: {
+			likes: true,
+			comments: true,
+			bookmarks: true,
+		},
+	},
+};
+
+type FullBlog = Prisma.BlogGetPayload<{
+	include: typeof blogInclude;
+}>;
 
 @Injectable()
 export class BlogService {
-  constructor(private prisma: PrismaService) {}
+	constructor(private prisma: PrismaService) {}
 
-  async findAll(): Promise<any[]> {
-    return this.prisma.blog.findMany({
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        category: true,
-        status: true,
-        tags: true,
-        _count: {
-          select: {
-            likes: true,
-            comments: true,
-            bookmarks: true,
-          },
-        },
-      },
-      orderBy: { publishedAt: 'desc' },
-    });
-  }
+	// =================================================================================
+	// PUBLIC METHODS
+	// =================================================================================
 
-  async findOne(id: number): Promise<any | null> {
-    return this.prisma.blog.findUnique({
-      where: { id },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        category: true,
-        status: true,
-        tags: true,
-        _count: {
-          select: {
-            likes: true,
-            comments: true,
-            bookmarks: true,
-          },
-        },
-      },
-    });
-  }
+	async findPublished(
+		page: number = 1,
+		limit: number = 10,
+	): Promise<IPaginatedResponse<FullBlog>> {
+		const skip = (page - 1) * limit;
+		const where: Prisma.BlogWhereInput = {
+			publishedAt: { not: null },
+			deletedAt: null,
+		};
 
-  async findBySlug(slug: string): Promise<any | null> {
-    return this.prisma.blog.findUnique({
-      where: { slug },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        category: true,
-        status: true,
-        tags: true,
-        _count: {
-          select: {
-            likes: true,
-            comments: true,
-            bookmarks: true,
-          },
-        },
-      },
-    });
-  }
+		const [items, total] = await this.prisma.$transaction([
+			this.prisma.blog.findMany({
+				where,
+				include: blogInclude,
+				skip,
+				take: limit,
+				orderBy: { publishedAt: 'desc' },
+			}),
+			this.prisma.blog.count({ where }),
+		]);
 
-  async findFeatured(limit: number = 10): Promise<any[]> {
-    return this.prisma.blog.findMany({
-      where: {
-        isFeatured: true,
-        publishedAt: { not: null },
-        deletedAt: null,
-      },
-      take: limit,
-      orderBy: { publishedAt: 'desc' },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        category: true,
-        status: true,
-        tags: true,
-        _count: {
-          select: {
-            likes: true,
-            comments: true,
-            bookmarks: true,
-          },
-        },
-      },
-    });
-  }
+		const totalPages = Math.ceil(total / limit);
 
-  async findPublished(page: number = 1, limit: number = 10): Promise<any> {
-    const skip = (page - 1) * limit;
+		return {
+			data: items,
+			total,
+			page,
+			limit,
+			totalPages,
+			hasNext: page < totalPages,
+			hasPrevious: page > 1,
+		};
+	}
 
-    const [items, total] = await Promise.all([
-      this.prisma.blog.findMany({
-        skip,
-        take: limit,
-        where: {
-          publishedAt: { not: null },
-          deletedAt: null,
-        },
-        orderBy: { publishedAt: 'desc' },
-        include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          category: true,
-          status: true,
-          tags: true,
-          _count: {
-            select: {
-              likes: true,
-              comments: true,
-              bookmarks: true,
-            },
-          },
-        },
-      }),
-      this.prisma.blog.count({
-        where: {
-          publishedAt: { not: null },
-          deletedAt: null,
-        },
-      }),
-    ]);
+	async findFeatured(limit: number = 5): Promise<FullBlog[]> {
+		return this.prisma.blog.findMany({
+			where: {
+				isFeatured: true,
+				publishedAt: { not: null },
+				deletedAt: null,
+			},
+			include: blogInclude,
+			take: limit,
+			orderBy: { publishedAt: 'desc' },
+		});
+	}
 
-    const totalPages = Math.ceil(total / limit);
+	async findBySlug(slug: string): Promise<FullBlog> {
+		const blog = await this.prisma.blog.findUnique({
+			where: { slug, deletedAt: null, publishedAt: { not: null } },
+			include: blogInclude,
+		});
 
-    return {
-      data: items,
-      total,
-      page,
-      limit,
-      totalPages,
-      hasNext: page < totalPages,
-      hasPrevious: page > 1,
-    };
-  }
-  async incrementViewCount(id: number): Promise<any> {
-    return this.prisma.blog.update({
-      where: { id },
-      data: { viewCount: { increment: 1 } },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        category: true,
-        status: true,
-        tags: true,
-        _count: {
-          select: {
-            likes: true,
-            comments: true,
-            bookmarks: true,
-          },
-        },
-      },
-    });
-  }
+		if (!blog) {
+			throw new NotFoundException(`Blog with slug "${slug}" not found`);
+		}
+		return blog;
+	}
 
-  // Admin methods with permission checks
-  async findAllForAdmin(params: {
-    page: number;
-    limit: number;
-    status?: string;
-    authorId?: number;
-  }): Promise<any> {
-    const { page, limit, status, authorId } = params;
-    const skip = (page - 1) * limit;
+	async incrementViewCount(id: number): Promise<void> {
+		// This can fail if the blog doesn't exist, but it's okay to not be critical.
+		// We won't await this in the controller to not slow down the response.
+		await this.prisma.blog.update({
+			where: { id },
+			data: { viewCount: { increment: 1 } },
+		});
+	}
 
-    const where: any = {
-      deletedAt: null,
-    };
+	// =================================================================================
+	// ADMIN METHODS
+	// =================================================================================
 
-    if (status) {
-      where.status = { name: status };
-    }
+	async findAllForAdmin(
+		query: AdminBlogQueryDto,
+	): Promise<IPaginatedResponse<FullBlog>> {
+		const {
+			page = 1,
+			limit = 10,
+			status,
+			authorId,
+			search,
+			deleted = false,
+			sortBy = 'createdAt',
+			sortOrder = 'desc',
+		} = query;
+		const skip = (page - 1) * limit;
 
-    if (authorId) {
-      where.authorId = authorId;
-    }
+		const where: Prisma.BlogWhereInput = {
+			deletedAt: deleted ? { not: null } : null,
+			AND: search
+				? {
+						OR: [
+							{ title: { contains: search, mode: 'insensitive' } },
+							{ summary: { contains: search, mode: 'insensitive' } },
+						],
+				  }
+				: undefined,
+			authorId: authorId ? authorId : undefined,
+			status: status ? { name: status } : undefined,
+		};
 
-    const [items, total] = await Promise.all([
-      this.prisma.blog.findMany({
-        where,
-        skip,
-        take: limit,
-        include: {
-          author: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
-          category: true,
-          status: true,
-          tags: true,
-          _count: {
-            select: {
-              likes: true,
-              comments: true,
-              bookmarks: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'desc' },
-      }),
-      this.prisma.blog.count({ where }),
-    ]);
+		const [items, total] = await this.prisma.$transaction([
+			this.prisma.blog.findMany({
+				where,
+				include: blogInclude,
+				skip,
+				take: limit,
+				orderBy: { [sortBy]: sortOrder },
+			}),
+			this.prisma.blog.count({ where }),
+		]);
 
-    const totalPages = Math.ceil(total / limit);
+		const totalPages = Math.ceil(total / limit);
 
-    return {
-      data: items,
-      total,
-      page,
-      limit,
-      totalPages,
-      hasNext: page < totalPages,
-      hasPrevious: page > 1,
-    };
-  }
+		return {
+			data: items,
+			total,
+			page,
+			limit,
+			totalPages,
+			hasNext: page < totalPages,
+			hasPrevious: page > 1,
+		};
+	}
 
-  async create(data: any): Promise<any> {
-    const { tagIds, ...blogData } = data;
+	async findOneForAdmin(id: number): Promise<FullBlog> {
+		const blog = await this.prisma.blog.findUnique({
+			where: { id },
+			include: blogInclude,
+		});
+		if (!blog) {
+			throw new NotFoundException(`Blog with ID ${id} not found.`);
+		}
+		return blog;
+	}
 
-    return this.prisma.blog.create({
-      data: {
-        ...blogData,
-        tags: tagIds
-          ? {
-              connect: tagIds.map((id: number) => ({ id })),
-            }
-          : undefined,
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        category: true,
-        status: true,
-        tags: true,
-      },
-    });
-  }
+	async create(
+		createBlogDto: CreateBlogDto,
+		authorId: number,
+	): Promise<FullBlog> {
+		const { tagIds, ...blogData } = createBlogDto;
 
-  async update(id: number, data: any, user: any): Promise<any> {
-    // Check if user is owner or has admin permissions
-    const existingBlog = await this.prisma.blog.findUnique({
-      where: { id },
-      include: { author: true },
-    });
+		return this.prisma.blog.create({
+			data: {
+				...blogData,
+				authorId,
+				tags: tagIds ? { connect: tagIds.map(id => ({ id })) } : undefined,
+			},
+			include: blogInclude,
+		});
+	}
 
-    if (!existingBlog) {
-      throw new Error('Blog not found');
-    }
+	async update(id: number, updateBlogDto: UpdateBlogDto): Promise<FullBlog> {
+		await this.findOneForAdmin(id); // Ensure blog exists
+		const { tagIds, ...blogData } = updateBlogDto;
 
-    // Only author or admin can edit
-    if (
-      existingBlog.authorId !== user.id &&
-      user.role?.name !== 'Super Admin'
-    ) {
-      throw new Error('Access denied');
-    }
+		return this.prisma.blog.update({
+			where: { id },
+			data: {
+				...blogData,
+				tags: tagIds ? { set: tagIds.map(id => ({ id })) } : undefined,
+			},
+			include: blogInclude,
+		});
+	}
 
-    const { tagIds, ...blogData } = data;
+	async remove(id: number): Promise<void> {
+		await this.findOneForAdmin(id); // Ensure blog exists
+		await this.prisma.blog.update({
+			where: { id },
+			data: { deletedAt: new Date() },
+		});
+	}
 
-    return this.prisma.blog.update({
-      where: { id },
-      data: {
-        ...blogData,
-        tags: tagIds
-          ? {
-              set: tagIds.map((id: number) => ({ id })),
-            }
-          : undefined,
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        category: true,
-        status: true,
-        tags: true,
-      },
-    });
-  }
+	async restore(id: number): Promise<FullBlog> {
+		const blog = await this.prisma.blog.findUnique({
+			where: { id, deletedAt: { not: null } },
+		});
 
-  async remove(id: number, user: any): Promise<any> {
-    const existingBlog = await this.prisma.blog.findUnique({
-      where: { id },
-      include: { author: true },
-    });
+		if (!blog) {
+			throw new NotFoundException(
+				`Blog with ID ${id} not found or is not deleted.`,
+			);
+		}
 
-    if (!existingBlog) {
-      throw new Error('Blog not found');
-    }
+		return this.prisma.blog.update({
+			where: { id },
+			data: { deletedAt: null },
+			include: blogInclude,
+		});
+	}
 
-    // Only author or admin can delete
-    if (
-      existingBlog.authorId !== user.id &&
-      user.role?.name !== 'Super Admin'
-    ) {
-      throw new Error('Access denied');
-    }
+	private async getStatusId(statusName: 'Published' | 'Draft' | 'Archived') {
+		const status = await this.prisma.status.findUnique({
+			where: { name_type: { name: statusName, type: 'BLOG' } },
+			select: { id: true },
+		});
+		if (!status) {
+			// This should not happen if the seed script has run correctly.
+			throw new Error(`Status "${statusName}" not found for type "BLOG".`);
+		}
+		return status.id;
+	}
 
-    return this.prisma.blog.update({
-      where: { id },
-      data: { deletedAt: new Date() },
-    });
-  }
+	async publish(id: number): Promise<FullBlog> {
+		await this.findOneForAdmin(id); // Ensure blog exists
+		const publishedStatusId = await this.getStatusId('Published');
 
-  async restore(id: number): Promise<any> {
-    return this.prisma.blog.update({
-      where: { id },
-      data: { deletedAt: null },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        category: true,
-        status: true,
-        tags: true,
-      },
-    });
-  }
+		return this.prisma.blog.update({
+			where: { id },
+			data: {
+				publishedAt: new Date(),
+				statusId: publishedStatusId,
+			},
+			include: blogInclude,
+		});
+	}
 
-  async publish(id: number): Promise<any> {
-    return this.prisma.blog.update({
-      where: { id },
-      data: {
-        publishedAt: new Date(),
-        // Assuming status ID 1 is "Published"
-        statusId: 1,
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        category: true,
-        status: true,
-        tags: true,
-      },
-    });
-  }
+	async unpublish(id: number): Promise<FullBlog> {
+		await this.findOneForAdmin(id); // Ensure blog exists
+		const draftStatusId = await this.getStatusId('Draft');
 
-  async unpublish(id: number): Promise<any> {
-    return this.prisma.blog.update({
-      where: { id },
-      data: {
-        publishedAt: null,
-        // Assuming status ID 2 is "Draft"
-        statusId: 2,
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        category: true,
-        status: true,
-        tags: true,
-      },
-    });
-  }
+		return this.prisma.blog.update({
+			where: { id },
+			data: {
+				publishedAt: null,
+				statusId: draftStatusId,
+			},
+			include: blogInclude,
+		});
+	}
 }

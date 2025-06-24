@@ -243,27 +243,13 @@ export class RoleService {
     // Prepare update data
     const data: Prisma.RoleUpdateInput = {
       ...roleData,
-      updatedAt: new Date(),
     };
 
-    // Update permissions if provided
+    // Only update permissions if the permissionIds array is provided in the DTO
     if (permissionIds !== undefined) {
-      // Disconnect all current permissions
-      await this.prisma.role.update({
-        where: { id },
-        data: {
-          permissions: {
-            set: [],
-          },
-        },
-      });
-
-      // Connect new permissions
-      if (permissionIds.length > 0) {
-        data.permissions = {
-          connect: permissionIds.map((permId) => ({ id: permId })),
-        };
-      }
+      data.permissions = {
+        set: permissionIds.map((permId) => ({ id: permId })),
+      };
     }
 
     return this.prisma.role.update({
@@ -314,28 +300,23 @@ export class RoleService {
   }
 
   async getRoleOptions(): Promise<RoleOptionDto[]> {
-    try {
-      const roles = await this.prisma.role.findMany({
-        where: {
-          deletedAt: null,
-        },
-        select: {
-          id: true,
-          name: true,
-        },
-        orderBy: {
-          name: 'asc',
-        },
-      });
+    const roles = await this.prisma.role.findMany({
+      where: {
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
 
-      return roles.map((role) => ({
-        value: role.id,
-        label: role.name,
-      }));
-    } catch (error) {
-      console.error('Error fetching role options:', error);
-      return [];
-    }
+    return roles.map((role) => ({
+      value: role.id,
+      label: role.name,
+    }));
   }
   async getRoleStats(deleted: boolean = false): Promise<RoleStatsDto> {
     const whereCondition = deleted
@@ -374,7 +355,7 @@ export class RoleService {
         });
 
     return {
-      totalRoles: deleted ? totalRoles : activeRoles + deletedRoles,
+      totalRoles: activeRoles + deletedRoles,
       activeRoles,
       deletedRoles,
       rolesWithUsers,
@@ -460,14 +441,54 @@ export class RoleService {
 
     return { restoredCount: result.count };
   }
+  async permanentDelete(id: number): Promise<void> {
+    const role = await this.prisma.role.findUnique({ where: { id } });
+    if (!role) {
+      throw new NotFoundException('Role not found');
+    }
+
+    // Optional: Check if the role is soft-deleted before permanent deletion
+    if (!role.deletedAt) {
+      throw new ConflictException(
+        'Role must be soft-deleted before permanent deletion.',
+      );
+    }
+    
+    // Check if role has users
+    const userCount = await this.prisma.user.count({
+      where: {
+        roleId: id,
+      },
+    });
+
+    if (userCount > 0) {
+      throw new ConflictException(
+        'Cannot permanently delete role that has assigned users.',
+      );
+    }
+    
+    await this.prisma.role.delete({ where: { id } });
+  }
   async bulkPermanentDelete(ids: number[]): Promise<{ deletedCount: number }> {
-    return this.prisma.role
-      .deleteMany({
-        where: {
-          id: { in: ids },
-          deletedAt: { not: null },
-        },
-      })
-      .then((result) => ({ deletedCount: result.count }));
+    // Add a check to ensure roles are not assigned to users before deletion
+    const rolesWithUsersCount = await this.prisma.user.count({
+      where: {
+        roleId: { in: ids },
+      },
+    });
+
+    if (rolesWithUsersCount > 0) {
+      throw new ConflictException(
+        'One or more roles are still assigned to users and cannot be permanently deleted.',
+      );
+    }
+
+    const result = await this.prisma.role.deleteMany({
+      where: {
+        id: { in: ids },
+        deletedAt: { not: null }, // Ensure we only delete soft-deleted roles
+      },
+    });
+    return { deletedCount: result.count };
   }
 }

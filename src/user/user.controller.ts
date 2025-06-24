@@ -1,364 +1,109 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-  Query,
-  ParseIntPipe,
-  HttpStatus,
-  HttpCode,
-  HttpException,
-  ConflictException,
-  BadRequestException,
-  NotFoundException,
-  ForbiddenException,
-  UseGuards,
-  Request,
-} from '@nestjs/common';
-import { UserService } from './user.service';
+	Controller,
+	Get,
+	Post,
+	Body,
+	Patch,
+	Param,
+	Delete,
+	Query,
+	ParseIntPipe,
+	HttpStatus,
+	HttpCode,
+} from '@nestjs/common'
+import { UserService } from './user.service'
 import {
-  CreateUserDto,
-  UpdateUserDto,
-  UserQueryDto,
-  BulkUserOperationDto,
-} from './dto/user.dto';
-import { AuthGuard } from '../auth/auth.guard';
-import { UserManagement } from '../common/decorators/permissions.decorator';
-import { ResourceOwnershipService } from '../common/services/resource-ownership.service';
+	CreateUserDto,
+	UpdateUserDto,
+	UserQueryDto,
+	BulkUserOperationDto,
+} from './dto/user.dto'
+import { CrudPermissions } from '../common/decorators/permissions.decorator'
 
 @Controller('api/users')
-@UseGuards(AuthGuard)
 export class UserController {
-  constructor(
-    private readonly userService: UserService,
-    private readonly resourceOwnership: ResourceOwnershipService,
-  ) {}
-  @Get()
-  @UserManagement.Read()
-  async findAll(@Query() query: UserQueryDto) {
-    try {
-      const result = await this.userService.findAll(query);
-      return {
-        success: true,
-        data: result.data,
-        meta: result.meta,
-        message: 'Users retrieved successfully',
-      };
-    } catch (error) {
-      throw new HttpException(
-        error.message || 'Failed to retrieve users',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-  @Get('stats')
-  @UserManagement.Read()
-  async getUserStats(@Query() query: { deleted?: string }) {
-    try {
-      const isDeleted = query.deleted === 'true';
-      const stats = await this.userService.getUserStats(isDeleted);
-      return {
-        success: true,
-        data: stats,
-        message: 'User statistics retrieved successfully',
-      };
-    } catch (error) {
-      throw new HttpException(
-        error.message || 'Failed to retrieve user statistics',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-  // Bulk operations - placed before parameterized routes to avoid conflicts
-  @Delete('bulk-delete')
-  @HttpCode(HttpStatus.OK)
-  @UserManagement.ManageAll()
-  async bulkDelete(@Body() body: BulkUserOperationDto, @Request() req: any) {
-    try {
-      console.log('🔍 Bulk Delete - Raw body received:', body);
-      console.log('🔍 Bulk Delete - Body type:', typeof body);
+	constructor(private readonly userService: UserService) {}
 
-      // Manual validation
-      if (!body.userIds || !Array.isArray(body.userIds)) {
-        throw new BadRequestException('userIds must be an array');
-      }
+	@Post()
+	@HttpCode(HttpStatus.CREATED)
+	@CrudPermissions.Users.Create()
+	async create(@Body() createUserDto: CreateUserDto) {
+		return this.userService.create(createUserDto)
+	}
 
-      // Ensure all IDs are strings
-      const userIds = body.userIds.map((id) => String(id));
-      console.log('🔍 Bulk Delete - Received userIds:', userIds);
+	@Get()
+	@CrudPermissions.Users.Read()
+	async findAll(@Query() query: UserQueryDto) {
+		return this.userService.findAll(query)
+	}
 
-      // Check permissions for bulk operations - requires manage all permission
-      const hasPermission =
-        await this.resourceOwnership.canUserAccessMultipleResources(
-          req.user,
-          'users',
-          userIds,
-          'delete',
-        );
+	@Get('stats')
+	@CrudPermissions.Users.Read()
+	async getUserStats(@Query('deleted') deleted: string) {
+		return this.userService.getUserStats(deleted === 'true')
+	}
 
-      if (!hasPermission.every(Boolean)) {
-        throw new ForbiddenException(
-          'Insufficient permissions for bulk delete operation',
-        );
-      }
+	@Get('email/:email')
+	@CrudPermissions.Users.Read()
+	async findByEmail(@Param('email') email: string) {
+		return this.userService.findByEmail(email)
+	}
 
-      const result = await this.userService.bulkDelete(userIds);
-      return {
-        success: true,
-        data: result,
-        message: 'Users deleted successfully',
-      };
-    } catch (error) {
-      console.error('Bulk delete error:', error);
-      throw new HttpException(
-        error.message || 'Failed to delete users',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
+	@Get(':id')
+	@CrudPermissions.Users.Read()
+	async findOne(@Param('id', ParseIntPipe) id: number) {
+		return this.userService.findOne(id)
+	}
 
-  @Patch('bulk-restore')
-  @HttpCode(HttpStatus.OK)
-  async bulkRestore(@Body() body: BulkUserOperationDto) {
-    try {
-      console.log('🔍 Bulk Restore - Raw body received:', body);
-      console.log('🔍 Bulk Restore - Body type:', typeof body);
+	@Patch(':id')
+	@CrudPermissions.Users.Update()
+	async update(
+		@Param('id', ParseIntPipe) id: number,
+		@Body() updateUserDto: UpdateUserDto,
+	) {
+		return this.userService.update(id, updateUserDto)
+	}
 
-      // Manual validation
-      if (!body.userIds || !Array.isArray(body.userIds)) {
-        throw new BadRequestException('userIds must be an array');
-      }
+	@Delete(':id')
+	@HttpCode(HttpStatus.NO_CONTENT)
+	@CrudPermissions.Users.Delete()
+	async remove(@Param('id', ParseIntPipe) id: number) {
+		await this.userService.remove(id)
+	}
 
-      // Ensure all IDs are strings
-      const userIds = body.userIds.map((id) => String(id));
-      console.log('🔍 Bulk Restore - Received userIds:', userIds);
+	@Post(':id/restore')
+	@CrudPermissions.Users.Restore()
+	async restore(@Param('id', ParseIntPipe) id: number) {
+		return this.userService.restore(id)
+	}
 
-      const result = await this.userService.bulkRestore(userIds);
-      return {
-        success: true,
-        data: result,
-        message: 'Users restored successfully',
-      };
-    } catch (error) {
-      console.error('Bulk restore error:', error);
-      throw new HttpException(
-        error.message || 'Failed to restore users',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
+	@Delete(':id/permanent')
+	@HttpCode(HttpStatus.NO_CONTENT)
+	@CrudPermissions.Users.FullAccess()
+	async permanentDelete(@Param('id', ParseIntPipe) id: number) {
+		await this.userService.permanentDelete(id)
+	}
 
-  @Delete('bulk-permanent-delete')
-  @HttpCode(HttpStatus.OK)
-  async bulkPermanentDelete(@Body() body: BulkUserOperationDto) {
-    try {
-      console.log('🔍 Bulk Permanent Delete - Raw body received:', body);
-      console.log('🔍 Bulk Permanent Delete - Body type:', typeof body);
+	// ====== BULK OPERATIONS ======
 
-      // Manual validation
-      if (!body.userIds || !Array.isArray(body.userIds)) {
-        throw new BadRequestException('userIds must be an array');
-      }
+	@Post('bulk/delete')
+	@HttpCode(HttpStatus.OK)
+	@CrudPermissions.Users.FullAccess()
+	async bulkDelete(@Body() body: BulkUserOperationDto) {
+		return this.userService.bulkDelete(body.userIds)
+	}
 
-      // Ensure all IDs are strings
-      const userIds = body.userIds.map((id) => String(id));
-      console.log('🔍 Bulk Permanent Delete - Received userIds:', userIds);
+	@Post('bulk/restore')
+	@HttpCode(HttpStatus.OK)
+	@CrudPermissions.Users.FullAccess()
+	async bulkRestore(@Body() body: BulkUserOperationDto) {
+		return this.userService.bulkRestore(body.userIds)
+	}
 
-      const result = await this.userService.bulkPermanentDelete(userIds);
-      return {
-        success: true,
-        data: result,
-        message: 'Users permanently deleted successfully',
-      };
-    } catch (error) {
-      console.error('Bulk permanent delete error:', error);
-      throw new HttpException(
-        error.message || 'Failed to permanently delete users',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  @Get(':id')
-  @UserManagement.Read()
-  async findOne(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
-    try {
-      // Check if user can access this user's data
-      await this.resourceOwnership.requireResourceAccess(
-        req.user,
-        'users',
-        id,
-        'read',
-      );
-
-      const user = await this.userService.findOne(id);
-      return {
-        success: true,
-        data: user,
-        message: 'User retrieved successfully',
-      };
-    } catch (error) {
-      throw new NotFoundException(error.message || 'User not found');
-    }
-  }
-
-  @Get(':id/detail')
-  @UserManagement.ViewProfile()
-  async findDetailById(
-    @Param('id', ParseIntPipe) id: number,
-    @Request() req: any,
-  ) {
-    try {
-      // Check if user can view this user's profile
-      await this.resourceOwnership.requireResourceAccess(
-        req.user,
-        'users',
-        id,
-        'view_profile',
-      );
-
-      const user = await this.userService.findDetailById(id);
-      return {
-        success: true,
-        data: user,
-        message: 'User details retrieved successfully',
-      };
-    } catch (error) {
-      throw new NotFoundException(error.message || 'User not found');
-    }
-  }
-  @Post()
-  @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createUserDto: CreateUserDto) {
-    try {
-      const user = await this.userService.create(createUserDto);
-      return {
-        success: true,
-        data: user,
-        message: 'User created successfully',
-      };
-    } catch (error) {
-      // Handle specific Prisma errors
-      if (error.code === 'P2002') {
-        // Unique constraint violation
-        const field = error.meta?.target?.[0] || 'field';
-        throw new ConflictException(`${field} already exists`);
-      }
-
-      // Handle validation errors
-      if (error.name === 'ValidationError' || error.status === 400) {
-        throw new BadRequestException(error.message || 'Invalid input data');
-      }
-
-      // Handle other errors
-      throw new HttpException(
-        error.message || 'Failed to create user',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-  @Patch(':id')
-  @UserManagement.Update()
-  async update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateUserDto: UpdateUserDto,
-    @Request() req: any,
-  ) {
-    try {
-      // Check if user can update this user
-      await this.resourceOwnership.requireResourceAccess(
-        req.user,
-        'users',
-        id,
-        'update',
-      );
-
-      const user = await this.userService.update(id, updateUserDto);
-      return {
-        success: true,
-        data: user,
-        message: 'User updated successfully',
-      };
-    } catch (error) {
-      // Handle specific errors
-      if (error.code === 'P2002') {
-        throw new ConflictException('Email already exists');
-      }
-      if (error.code === 'P2025') {
-        throw new NotFoundException('User not found');
-      }
-      throw new BadRequestException(error.message || 'Failed to update user');
-    }
-  }
-  @Delete(':id')
-  @HttpCode(HttpStatus.OK)
-  @UserManagement.Delete()
-  async remove(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
-    try {
-      // Check if user can delete this user
-      await this.resourceOwnership.requireResourceAccess(
-        req.user,
-        'users',
-        id,
-        'delete',
-      );
-
-      await this.userService.remove(id);
-      return {
-        success: true,
-        message: 'User deleted successfully',
-        data: null,
-      };
-    } catch (error) {
-      if (error.code === 'P2025') {
-        throw new NotFoundException('User not found');
-      }
-      throw new BadRequestException(error.message || 'Failed to delete user');
-    }
-  }
-
-  @Patch(':id/restore')
-  @HttpCode(HttpStatus.OK)
-  async restoreUser(@Param('id', ParseIntPipe) id: number) {
-    try {
-      const user = await this.userService.restore(id);
-      return {
-        success: true,
-        data: user,
-        message: 'User restored successfully',
-      };
-    } catch (error) {
-      if (error.message.includes('not found')) {
-        throw new NotFoundException('User not found');
-      }
-      throw new HttpException(
-        error.message || 'Failed to restore user',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-  @Delete(':id/permanent')
-  @HttpCode(HttpStatus.OK)
-  async permanentDelete(@Param('id', ParseIntPipe) id: number) {
-    try {
-      await this.userService.permanentDelete(id);
-      return {
-        success: true,
-        message: 'User permanently deleted',
-        data: null,
-      };
-    } catch (error) {
-      if (error.message.includes('not found')) {
-        throw new NotFoundException('User not found');
-      }
-      throw new HttpException(
-        error.message || 'Failed to permanently delete user',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
+	@Post('bulk/permanent-delete')
+	@HttpCode(HttpStatus.OK)
+	@CrudPermissions.Users.FullAccess()
+	async bulkPermanentDelete(@Body() body: BulkUserOperationDto) {
+		return this.userService.bulkPermanentDelete(body.userIds)
+	}
 }

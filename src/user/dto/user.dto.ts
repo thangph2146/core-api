@@ -71,6 +71,13 @@ export class UpdateUserDto {
   @IsDateString()
   @IsOptional()
   emailVerified?: string;
+
+  @IsOptional()
+  profile?: {
+    bio?: string;
+    avatarUrl?: string;
+    socialLinks?: Record<string, any>;
+  };
 }
 
 export class UserQueryDto {
@@ -154,6 +161,6 @@ export class UserListResponseDto {
 
 export class BulkUserOperationDto {
   @IsArray()
-  @IsString({ each: true })
-  userIds: string[];
+  @IsInt({ each: true })
+  userIds: number[];
 }

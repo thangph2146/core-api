@@ -1,11 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
-import { IUser } from './dto/auth.dto';
 
 export interface IJwtPayload {
   userId: number;
   email: string;
-  roleId?: number;
+  roleId?: number | null;
   iat?: number;
   exp?: number;
 }
@@ -14,6 +13,12 @@ export interface ITokens {
   accessToken: string;
   refreshToken: string;
 }
+
+type UserPayload = {
+  id: number;
+  email: string;
+  roleId?: number | null;
+};
 
 @Injectable()
 export class JwtService {
@@ -25,9 +30,23 @@ export class JwtService {
     process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 
   /**
-   * Generate access and refresh tokens
+   * Generates just an access token.
    */
-  generateTokens(user: IUser): ITokens {
+  generateAccessToken(user: UserPayload): string {
+    const payload: IJwtPayload = {
+      userId: user.id,
+      email: user.email,
+      roleId: user.roleId,
+    };
+    return jwt.sign(payload, this.JWT_SECRET, {
+      expiresIn: this.JWT_EXPIRES_IN,
+    } as jwt.SignOptions);
+  }
+
+  /**
+   * Generate both access and refresh tokens. The refresh token is a JWT in this setup.
+   */
+  generateTokens(user: UserPayload): ITokens {
     const payload: IJwtPayload = {
       userId: user.id,
       email: user.email,
@@ -46,7 +65,7 @@ export class JwtService {
   }
 
   /**
-   * Verify access token
+   * Verify access token.
    */
   verifyAccessToken(token: string): IJwtPayload {
     try {
@@ -57,7 +76,7 @@ export class JwtService {
   }
 
   /**
-   * Verify refresh token
+   * Verify refresh token.
    */
   verifyRefreshToken(token: string): IJwtPayload {
     try {
@@ -68,9 +87,9 @@ export class JwtService {
   }
 
   /**
-   * Generate new access token from refresh token
+   * Creates a new access token from a valid refresh token.
    */
-  refreshAccessToken(refreshToken: string): string {
+  createAccessTokenFromRefreshToken(refreshToken: string): string {
     const payload = this.verifyRefreshToken(refreshToken);
 
     // Create new payload without iat and exp

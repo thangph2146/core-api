@@ -151,3 +151,25 @@ export interface IPaginatedResponse<T> {
   hasNext: boolean;
   hasPrevious: boolean;
 }
+
+import { Request } from 'express';
+import { User, Role, Permission } from '@prisma/client';
+
+// Extend the Prisma User type to include nested relations
+export type UserWithRelations = User & {
+  role?: Role & {
+    permissions?: Permission[];
+  };
+};
+
+/**
+ * Represents the user object attached to the request after successful authentication.
+ * It includes the full user details, their role, and a flattened list of permission names.
+ */
+export type AuthenticatedUser = UserWithRelations & {
+  permissions: string[];
+};
+
+export interface AuthenticatedRequest extends Request {
+  user: AuthenticatedUser;
+}

@@ -39,9 +39,6 @@ export class CreateBlogDto {
   @IsDateString()
   publishedAt?: string;
 
-  @IsNumber()
-  authorId: number;
-
   @IsOptional()
   @IsNumber()
   categoryId?: number;
@@ -166,4 +163,16 @@ export class BlogQueryDto {
   @IsOptional()
   @IsString()
   sortOrder?: 'asc' | 'desc' = 'desc';
+}
+
+export class AdminBlogQueryDto extends BlogQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  authorId?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  @Type(() => Boolean)
+  deleted?: boolean = false;
 }

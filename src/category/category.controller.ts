@@ -1,79 +1,110 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-} from '@nestjs/common';
-import { CategoryService } from './category.service';
-import { AuthGuard } from '../auth/auth.guard';
+	Controller,
+	Get,
+	Post,
+	Patch,
+	Delete,
+	Body,
+	Param,
+	Query,
+	ParseIntPipe,
+	HttpCode,
+	HttpStatus,
+	UseGuards,
+} from '@nestjs/common'
+import { CategoryService } from './category.service'
 import {
-  RequirePermissions,
-  Public,
-} from '../common/decorators/roles.decorator';
+	Public,
+	CrudPermissions,
+} from '../common/decorators/permissions.decorator'
+import {
+	CreateCategoryDto,
+	UpdateCategoryDto,
+	CategoryQueryDto,
+} from './dto/category.dto'
+import { AuthGuard } from '../auth/auth.guard'
 
-@Controller('categories')
+@Controller('api/categories')
+@UseGuards(AuthGuard)
 export class CategoryController {
-  constructor(private readonly categoryService: CategoryService) {}
+	constructor(private readonly categoryService: CategoryService) {}
 
-  // Public endpoints
-  @Get()
-  @Public()
-  async findAll(@Query('type') type?: string) {
-    if (type) {
-      return this.categoryService.findByType(type);
-    }
-    return this.categoryService.findAll();
-  }
+	// =================================================================================
+	// PUBLIC ENDPOINTS
+	// =================================================================================
 
-  @Get('type/:type')
-  @Public()
-  async findByType(@Param('type') type: string) {
-    return this.categoryService.findByType(type);
-  }
+	@Get('public')
+	@Public()
+	async findAllPublic(@Query() query: CategoryQueryDto) {
+		// Public queries should not see deleted items
+		query.deleted = false
+		return this.categoryService.findAll(query)
+	}
 
-  @Get(':identifier')
-  @Public()
-  async findOne(
-    @Param('identifier') identifier: string,
-    @Query('type') type?: string,
-  ) {
-    // Check if identifier is a number (ID) or string (slug)
-    const isNumeric = /^\d+$/.test(identifier);
+	@Get(':type/:slug')
+	@Public()
+	async findBySlugPublic(
+		@Param('slug') slug: string,
+		@Param('type') type: string,
+	) {
+		return this.categoryService.findBySlug(slug, type)
+	}
 
-    if (isNumeric) {
-      return this.categoryService.findOne(parseInt(identifier, 10));
-    } else {
-      if (!type) {
-        throw new Error('Type parameter is required when searching by slug');
-      }
-      return this.categoryService.findBySlug(identifier, type);
-    }
-  }
+	@Get('options')
+	@Public()
+	async getCategoryOptions(@Query('type') type?: string) {
+		return this.categoryService.getCategoryOptions(type)
+	}
 
-  // Admin endpoints
-  @Post()
-  @RequirePermissions('categories.create')
-  async create(@Body() createCategoryDto: any) {
-    return this.categoryService.create(createCategoryDto);
-  }
+	// =================================================================================
+	// ADMIN ENDPOINTS
+	// =================================================================================
 
-  @Put(':id')
-  @RequirePermissions('categories.update')
-  async update(@Param('id') id: string, @Body() updateCategoryDto: any) {
-    return this.categoryService.update({
-      where: { id: parseInt(id, 10) },
-      data: updateCategoryDto,
-    });
-  }
+	@Get('admin/all')
+	@CrudPermissions.ContentTypes.Read()
+	async findAllAdmin(@Query() query: CategoryQueryDto) {
+		return this.categoryService.findAll(query)
+	}
 
-  @Delete(':id')
-  @RequirePermissions('categories.delete')
-  async remove(@Param('id') id: string) {
-    return this.categoryService.delete({ id: parseInt(id, 10) });
-  }
+	@Get('admin/:id')
+	@CrudPermissions.ContentTypes.Read()
+	async findOneAdmin(@Param('id', ParseIntPipe) id: number) {
+		return this.categoryService.findOne(id)
+	}
+
+	@Post()
+	@HttpCode(HttpStatus.CREATED)
+	@CrudPermissions.ContentTypes.Create()
+	async create(@Body() createCategoryDto: CreateCategoryDto) {
+		return this.categoryService.create(createCategoryDto)
+	}
+
+	@Patch(':id')
+	@CrudPermissions.ContentTypes.Update()
+	async update(
+		@Param('id', ParseIntPipe) id: number,
+		@Body() updateCategoryDto: UpdateCategoryDto,
+	) {
+		return this.categoryService.update(id, updateCategoryDto)
+	}
+
+	@Delete(':id')
+	@HttpCode(HttpStatus.NO_CONTENT)
+	@CrudPermissions.ContentTypes.Delete()
+	async remove(@Param('id', ParseIntPipe) id: number) {
+		return this.categoryService.delete(id)
+	}
+
+	@Post(':id/restore')
+	@CrudPermissions.ContentTypes.Restore()
+	async restore(@Param('id', ParseIntPipe) id: number) {
+		return this.categoryService.restore(id)
+	}
+
+	@Delete(':id/permanent')
+	@HttpCode(HttpStatus.NO_CONTENT)
+	@CrudPermissions.ContentTypes.FullAccess()
+	async permanentDelete(@Param('id', ParseIntPipe) id: number) {
+		return this.categoryService.permanentDelete(id)
+	}
 }

@@ -8,12 +8,9 @@ import { BlogModule } from './blog/blog.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { RoleModule } from './role/role.module';
-import { PermissionModule as CorePermissionModule } from './permission/permission.module';
-import { PermissionModule } from './common/permission.module';
+import { PermissionModule } from './permission/permission.module';
 import { AuthGuard } from './auth/auth.guard';
-import { RolesGuard } from './common/guards/enhanced-roles.guard';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
-import { PermissionMiddleware } from './common/middleware/permission.middleware';
 import { SanitizationPipe } from './common/pipes/sanitization.pipe';
 import { RateLimitInterceptor } from './common/interceptors/rate-limit.interceptor';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
@@ -28,7 +25,6 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
     AuthModule,
     UserModule,
     RoleModule,
-    CorePermissionModule,
     PermissionModule,
   ],
   controllers: [AppController],
@@ -38,10 +34,6 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
     },
     // Global Pipes
     {
@@ -62,7 +54,5 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
     consumer.apply(SecurityHeadersMiddleware).forRoutes('*');
-
-    consumer.apply(PermissionMiddleware).forRoutes('*');
   }
 }

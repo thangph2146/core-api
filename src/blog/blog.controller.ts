@@ -1,147 +1,125 @@
 import {
-  Controller,
-  Get,
-  Post,
-  Patch,
-  Delete,
-  Param,
-  Query,
-  Body,
-  ParseIntPipe,
-  UseGuards,
-  Request,
+	Controller,
+	Get,
+	Post,
+	Patch,
+	Delete,
+	Param,
+	Query,
+	Body,
+	ParseIntPipe,
+	Request,
+	HttpCode,
+	HttpStatus,
+	UseGuards,
 } from '@nestjs/common';
 import { BlogService } from './blog.service';
-import { AuthGuard } from '../auth/auth.guard';
 import {
-  RequirePermissions,
-  Public,
-} from '../common/decorators/roles.decorator';
-import { CreateBlogDto, UpdateBlogDto } from './dto/blog.dto';
+	CrudPermissions,
+	RequireOwnership,
+	Public,
+} from '../common/decorators/permissions.decorator';
+import {
+	CreateBlogDto,
+	UpdateBlogDto,
+	AdminBlogQueryDto,
+	BlogQueryDto,
+} from './dto/blog.dto';
+import { AuthenticatedRequest } from 'src/common/interfaces';
+import { AuthGuard } from '../auth/auth.guard';
 
 @Controller('api/blogs')
+@UseGuards(AuthGuard)
 export class BlogController {
-  constructor(private readonly blogService: BlogService) {}
+	constructor(private readonly blogService: BlogService) {}
 
-  // Public endpoints (no authentication required)
-  @Get()
-  @Public()
-  async findAll(
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10',
-  ) {
-    const pageNumber = parseInt(page, 10);
-    const limitNumber = parseInt(limit, 10);
+	// =================================================================================
+	// PUBLIC ENDPOINTS
+	// =================================================================================
 
-    return await this.blogService.findPublished(pageNumber, limitNumber);
-  }
+	@Get()
+	@Public()
+	async findPublished(@Query() query: BlogQueryDto) {
+		return await this.blogService.findPublished(query.page, query.limit);
+	}
 
-  @Get('featured')
-  @Public()
-  async getFeatured(@Query('limit') limit: string = '5') {
-    const limitNumber = parseInt(limit, 10);
-    return await this.blogService.findFeatured(limitNumber);
-  }
+	@Get('featured')
+	@Public()
+	async getFeatured(@Query('limit') limit: string = '5') {
+		return await this.blogService.findFeatured(parseInt(limit, 10));
+	}
 
-  @Get('published')
-  @Public()
-  async getPublished(
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10',
-  ) {
-    const pageNumber = parseInt(page, 10);
-    const limitNumber = parseInt(limit, 10);
+	@Get(':slug')
+	@Public()
+	async findBySlug(@Param('slug') slug: string) {
+		const blog = await this.blogService.findBySlug(slug);
+		// Increment view count without waiting for it to complete
+		this.blogService.incrementViewCount(blog.id);
+		return blog;
+	}
 
-    return await this.blogService.findPublished(pageNumber, limitNumber);
-  }
+	// =================================================================================
+	// ADMIN ENDPOINTS
+	// =================================================================================
 
-  // Admin endpoints (require authentication and permissions)
-  @Get('admin/all')
-  @RequirePermissions('blogs.read')
-  async findAllForAdmin(
-    @Query('page') page: string = '1',
-    @Query('limit') limit: string = '10',
-    @Query('status') status?: string,
-    @Query('authorId') authorId?: string,
-  ) {
-    const pageNumber = parseInt(page, 10);
-    const limitNumber = parseInt(limit, 10);
-    const authorIdNumber = authorId ? parseInt(authorId, 10) : undefined;
+	@Get('admin/all')
+	@CrudPermissions.Blogs.Read()
+	async findAllForAdmin(@Query() query: AdminBlogQueryDto) {
+		return await this.blogService.findAllForAdmin(query);
+	}
 
-    return await this.blogService.findAllForAdmin({
-      page: pageNumber,
-      limit: limitNumber,
-      status,
-      authorId: authorIdNumber,
-    });
-  }
+	@Get('admin/:id')
+	@CrudPermissions.Blogs.Read()
+	async findOneForAdmin(@Param('id', ParseIntPipe) id: number) {
+		return await this.blogService.findOneForAdmin(id);
+	}
 
-  @Post()
-  @RequirePermissions('blogs.create')
-  async create(@Body() createBlogDto: CreateBlogDto, @Request() req: any) {
-    return await this.blogService.create({
-      ...createBlogDto,
-      authorId: req.user.id,
-    });
-  }
+	@Post()
+	@HttpCode(HttpStatus.CREATED)
+	@CrudPermissions.Blogs.Create()
+	async create(
+		@Body() createBlogDto: CreateBlogDto,
+		@Request() req: AuthenticatedRequest,
+	) {
+		return await this.blogService.create(createBlogDto, req.user.id);
+	}
 
-  @Patch(':id')
-  @RequirePermissions('blogs.update')
-  async update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateBlogDto: UpdateBlogDto,
-    @Request() req: any,
-  ) {
-    return await this.blogService.update(id, updateBlogDto, req.user);
-  }
+	@Patch(':id')
+	@CrudPermissions.Blogs.Update()
+	@RequireOwnership('BLOGS')
+	async update(
+		@Param('id', ParseIntPipe) id: number,
+		@Body() updateBlogDto: UpdateBlogDto,
+	) {
+		return await this.blogService.update(id, updateBlogDto);
+	}
 
-  @Delete(':id')
-  @RequirePermissions('blogs.delete')
-  async remove(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
-    return await this.blogService.remove(id, req.user);
-  }
+	@Delete(':id')
+	@HttpCode(HttpStatus.NO_CONTENT)
+	@CrudPermissions.Blogs.Delete()
+	@RequireOwnership('BLOGS')
+	async remove(@Param('id', ParseIntPipe) id: number) {
+		return await this.blogService.remove(id);
+	}
 
-  @Post(':id/restore')
-  @RequirePermissions('blogs.restore')
-  async restore(@Param('id', ParseIntPipe) id: number) {
-    return await this.blogService.restore(id);
-  }
+	@Post(':id/restore')
+	@HttpCode(HttpStatus.OK)
+	@CrudPermissions.Blogs.Restore()
+	async restore(@Param('id', ParseIntPipe) id: number) {
+		return this.blogService.restore(id);
+	}
 
-  @Post(':id/publish')
-  @RequirePermissions('blogs.publish')
-  async publish(@Param('id', ParseIntPipe) id: number) {
-    return await this.blogService.publish(id);
-  }
+	@Patch(':id/publish')
+	@HttpCode(HttpStatus.OK)
+	@CrudPermissions.Blogs.FullAccess()
+	async publish(@Param('id', ParseIntPipe) id: number) {
+		return this.blogService.publish(id);
+	}
 
-  @Post(':id/unpublish')
-  @RequirePermissions('blogs.publish')
-  async unpublish(@Param('id', ParseIntPipe) id: number) {
-    return await this.blogService.unpublish(id);
-  }
-
-  // This should be last to avoid conflicts with other routes
-  @Get(':identifier')
-  @Public()
-  async findOne(@Param('identifier') identifier: string) {
-    // Check if identifier is a number (ID) or string (slug)
-    const isNumeric = /^\d+$/.test(identifier);
-
-    let blog;
-    if (isNumeric) {
-      const id = parseInt(identifier, 10);
-      blog = await this.blogService.findOne(id);
-      if (blog) {
-        // Increment view count
-        await this.blogService.incrementViewCount(id);
-      }
-    } else {
-      blog = await this.blogService.findBySlug(identifier);
-      if (blog) {
-        // Increment view count
-        await this.blogService.incrementViewCount(blog.id);
-      }
-    }
-
-    return blog;
-  }
+	@Patch(':id/unpublish')
+	@HttpCode(HttpStatus.OK)
+	@CrudPermissions.Blogs.FullAccess()
+	async unpublish(@Param('id', ParseIntPipe) id: number) {
+		return this.blogService.unpublish(id);
+	}
 }
