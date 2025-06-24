@@ -1,4 +1,9 @@
-import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import {
+	Module,
+	MiddlewareConsumer,
+	NestModule,
+	ValidationPipe,
+} from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_GUARD, APP_PIPE, APP_INTERCEPTOR } from '@nestjs/core';
 import { AppController } from './app.controller';
@@ -9,6 +14,8 @@ import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
 import { RoleModule } from './role/role.module';
 import { PermissionModule } from './permission/permission.module';
+import { CategoryModule } from './category/category.module';
+import { TagModule } from './tag/tag.module';
 import { AuthGuard } from './auth/auth.guard';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
 import { SanitizationPipe } from './common/pipes/sanitization.pipe';
@@ -26,6 +33,8 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
     UserModule,
     RoleModule,
     PermissionModule,
+    CategoryModule,
+    TagModule,
   ],
   controllers: [AppController],
   providers: [
@@ -36,6 +45,10 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
       useClass: AuthGuard,
     },
     // Global Pipes
+    {
+      provide: APP_PIPE,
+      useClass: ValidationPipe,
+    },
     {
       provide: APP_PIPE,
       useClass: SanitizationPipe,

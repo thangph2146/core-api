@@ -173,9 +173,9 @@ export class AuthGuard implements CanActivate {
       return true;
     }
 
-    // Users with 'manage' permission for the resource type can bypass ownership check
-    const managePermission = `${resourceType.toLowerCase()}:manage`;
-    if (user.permissions.includes(managePermission)) {
+    // Users with 'full_access' permission for the resource type can bypass ownership check
+    const fullAccessPermission = `${resourceType.toLowerCase()}:full_access`;
+    if (user.permissions.includes(fullAccessPermission)) {
       return true;
     }
 

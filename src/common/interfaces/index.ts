@@ -56,7 +56,7 @@ export interface IBlog extends IBaseEntity {
   title: string;
   slug: string;
   summary?: string | null;
-  content: any; // JSON content
+  content: Prisma.JsonValue; // JSON content
   imageUrl?: string | null;
   imageTitle?: string | null;
   statusId?: number | null;
@@ -137,9 +137,11 @@ export interface IRoleStats {
 export interface IPaginationParams {
   skip?: number;
   take?: number;
-  cursor?: any;
-  where?: any;
-  orderBy?: any;
+  cursor?: Record<string, number | string>;
+  where?: Record<string, unknown>;
+  orderBy?:
+    | Record<string, 'asc' | 'desc'>
+    | Array<Record<string, 'asc' | 'desc'>>;
 }
 
 export interface IPaginatedResponse<T> {
@@ -153,7 +155,7 @@ export interface IPaginatedResponse<T> {
 }
 
 import { Request } from 'express';
-import { User, Role, Permission } from '@prisma/client';
+import { User, Role, Permission, Prisma } from '@prisma/client';
 
 // Extend the Prisma User type to include nested relations
 export type UserWithRelations = User & {

@@ -1,29 +1,89 @@
-export interface CreatePermissionDto {
-  name: string;
-  description?: string;
-  metaTitle?: string;
-  metaDescription?: string;
+import {
+	IsString,
+	IsOptional,
+	MaxLength,
+	IsInt,
+	IsBoolean,
+	Min,
+} from 'class-validator';
+import { Transform } from 'class-transformer';
+
+export class CreatePermissionDto {
+	@IsString()
+	@MaxLength(100)
+	name: string;
+
+	@IsOptional()
+	@IsString()
+	@MaxLength(255)
+	description?: string;
+
+	@IsOptional()
+	@IsString()
+	@MaxLength(100)
+	metaTitle?: string;
+
+	@IsOptional()
+	@IsString()
+	@MaxLength(160)
+	metaDescription?: string;
 }
 
-export interface UpdatePermissionDto {
-  name?: string;
-  description?: string;
-  metaTitle?: string;
-  metaDescription?: string;
+export class UpdatePermissionDto {
+	@IsOptional()
+	@IsString()
+	@MaxLength(100)
+	name?: string;
+
+	@IsOptional()
+	@IsString()
+	@MaxLength(255)
+	description?: string;
+
+	@IsOptional()
+	@IsString()
+	@MaxLength(100)
+	metaTitle?: string;
+
+	@IsOptional()
+	@IsString()
+	@MaxLength(160)
+	metaDescription?: string;
 }
 
-export interface PermissionQueryDto {
-  page?: number;
-  limit?: number;
-  search?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-  includeDeleted?: boolean;
-  deleted?: boolean;
+export class PermissionQueryDto {
+	@IsOptional()
+	@IsInt()
+	@Min(1)
+	@Transform(({ value }) => parseInt(value, 10))
+	page?: number = 1;
+
+	@IsOptional()
+	@IsInt()
+	@Min(1)
+	@Transform(({ value }) => parseInt(value, 10))
+	limit?: number = 10;
+
+	@IsOptional()
+	@IsString()
+	search?: string;
+
+	@IsOptional()
+	@IsString()
+	sortBy?: string = 'createdAt';
+
+	@IsOptional()
+	@IsString()
+	sortOrder?: 'asc' | 'desc' = 'desc';
+
+	@IsOptional()
+	@IsBoolean()
+	@Transform(({ value }) => value === 'true')
+	deleted?: boolean = false;
 }
 
-export interface PermissionStatsDto {
-  total: number;
-  active: number;
-  deleted: number;
+export class PermissionStatsDto {
+	total: number;
+	active: number;
+	deleted: number;
 }
