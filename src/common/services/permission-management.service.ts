@@ -1,6 +1,13 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { ALL_PERMISSIONS, DEFAULT_ROLES } from '../constants/permissions.constants';
+import {
+  ALL_PERMISSIONS,
+  DEFAULT_ROLES,
+} from '../constants/permissions.constants';
 
 export interface PermissionSummary {
   id: number;
@@ -41,7 +48,7 @@ export class PermissionManagementService {
       orderBy: { name: 'asc' },
     });
 
-    return permissions.map(permission => ({
+    return permissions.map((permission) => ({
       id: permission.id,
       name: permission.name,
       description: permission.description,
@@ -53,17 +60,22 @@ export class PermissionManagementService {
   /**
    * Get permissions grouped by category
    */
-  async getPermissionsByCategory(): Promise<Record<string, PermissionSummary[]>> {
+  async getPermissionsByCategory(): Promise<
+    Record<string, PermissionSummary[]>
+  > {
     const permissions = await this.getAllPermissions();
-    
-    return permissions.reduce((acc, permission) => {
-      const category = permission.category;
-      if (!acc[category]) {
-        acc[category] = [];
-      }
-      acc[category].push(permission);
-      return acc;
-    }, {} as Record<string, PermissionSummary[]>);
+
+    return permissions.reduce(
+      (acc, permission) => {
+        const category = permission.category;
+        if (!acc[category]) {
+          acc[category] = [];
+        }
+        acc[category].push(permission);
+        return acc;
+      },
+      {} as Record<string, PermissionSummary[]>,
+    );
   }
 
   /**
@@ -89,7 +101,7 @@ export class PermissionManagementService {
       orderBy: { name: 'asc' },
     });
 
-    return roles.map(role => ({
+    return roles.map((role) => ({
       id: role.id,
       name: role.name,
       description: role.description,
@@ -136,7 +148,10 @@ export class PermissionManagementService {
   /**
    * Assign permissions to role
    */
-  async assignPermissionsToRole(roleId: number, permissionIds: number[]): Promise<RoleWithPermissions> {
+  async assignPermissionsToRole(
+    roleId: number,
+    permissionIds: number[],
+  ): Promise<RoleWithPermissions> {
     // Verify role exists
     const role = await this.prisma.role.findUnique({
       where: { id: roleId, deletedAt: null },
@@ -163,7 +178,7 @@ export class PermissionManagementService {
       where: { id: roleId },
       data: {
         permissions: {
-          set: permissionIds.map(id => ({ id })),
+          set: permissionIds.map((id) => ({ id })),
         },
         updatedAt: new Date(),
       },
@@ -175,7 +190,10 @@ export class PermissionManagementService {
   /**
    * Remove permissions from role
    */
-  async removePermissionsFromRole(roleId: number, permissionIds: number[]): Promise<RoleWithPermissions> {
+  async removePermissionsFromRole(
+    roleId: number,
+    permissionIds: number[],
+  ): Promise<RoleWithPermissions> {
     // Verify role exists
     const role = await this.prisma.role.findUnique({
       where: { id: roleId, deletedAt: null },
@@ -191,17 +209,19 @@ export class PermissionManagementService {
     }
 
     // Get current permission IDs
-    const currentPermissionIds = role.permissions.map(p => p.id);
-    
+    const currentPermissionIds = role.permissions.map((p) => p.id);
+
     // Remove specified permissions
-    const newPermissionIds = currentPermissionIds.filter(id => !permissionIds.includes(id));
+    const newPermissionIds = currentPermissionIds.filter(
+      (id) => !permissionIds.includes(id),
+    );
 
     // Update role permissions
     await this.prisma.role.update({
       where: { id: roleId },
       data: {
         permissions: {
-          set: newPermissionIds.map(id => ({ id })),
+          set: newPermissionIds.map((id) => ({ id })),
         },
         updatedAt: new Date(),
       },
@@ -232,46 +252,56 @@ export class PermissionManagementService {
       throw new NotFoundException('User not found');
     }
 
-    return user.role?.permissions.map(p => p.name) || [];
+    return user.role?.permissions.map((p) => p.name) || [];
   }
 
   /**
    * Check if user has specific permission
    */
-  async userHasPermission(userId: number, permissionName: string): Promise<boolean> {
+  async userHasPermission(
+    userId: number,
+    permissionName: string,
+  ): Promise<boolean> {
     const userPermissions = await this.getUserPermissions(userId);
-    
+
     // Super admin bypass
     if (userPermissions.includes('admin:full_access')) {
       return true;
     }
-    
+
     return userPermissions.includes(permissionName);
   }
 
   /**
    * Check if user has any of the specified permissions
    */
-  async userHasAnyPermission(userId: number, permissionNames: string[]): Promise<boolean> {
+  async userHasAnyPermission(
+    userId: number,
+    permissionNames: string[],
+  ): Promise<boolean> {
     const userPermissions = await this.getUserPermissions(userId);
-    
+
     // Super admin bypass
     if (userPermissions.includes('admin:full_access')) {
       return true;
     }
-    
-    return permissionNames.some(permission => userPermissions.includes(permission));
+
+    return permissionNames.some((permission) =>
+      userPermissions.includes(permission),
+    );
   }
 
   /**
    * Get users by permission
    */
-  async getUsersByPermission(permissionName: string): Promise<Array<{
-    id: number;
-    email: string;
-    name: string | null;
-    roleName: string | null;
-  }>> {
+  async getUsersByPermission(permissionName: string): Promise<
+    Array<{
+      id: number;
+      email: string;
+      name: string | null;
+      roleName: string | null;
+    }>
+  > {
     const users = await this.prisma.user.findMany({
       where: {
         deletedAt: null,
@@ -291,7 +321,7 @@ export class PermissionManagementService {
       },
     });
 
-    return users.map(user => ({
+    return users.map((user) => ({
       id: user.id,
       email: user.email,
       name: user.name,
@@ -302,7 +332,11 @@ export class PermissionManagementService {
   /**
    * Sync permissions from constants to database
    */
-  async syncPermissions(): Promise<{ created: number; updated: number; errors: string[] }> {
+  async syncPermissions(): Promise<{
+    created: number;
+    updated: number;
+    errors: string[];
+  }> {
     const errors: string[] = [];
     let created = 0;
     let updated = 0;
@@ -328,7 +362,9 @@ export class PermissionManagementService {
             updated++;
           }
         } catch (error) {
-          errors.push(`Failed to sync permission ${permissionName}: ${error.message}`);
+          errors.push(
+            `Failed to sync permission ${permissionName}: ${error.message}`,
+          );
         }
       }
     } catch (error) {
@@ -386,11 +422,14 @@ export class PermissionManagementService {
       }),
     ]);
 
-    const permissionsPerCategory = permissions.reduce((acc, permission) => {
-      const category = this.getCategoryFromPermission(permission.name);
-      acc[category] = (acc[category] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const permissionsPerCategory = permissions.reduce(
+      (acc, permission) => {
+        const category = this.getCategoryFromPermission(permission.name);
+        acc[category] = (acc[category] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     return {
       totalPermissions,

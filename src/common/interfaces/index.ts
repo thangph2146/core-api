@@ -66,7 +66,7 @@ export interface IBlog extends IBaseEntity {
   viewCount: number;
   isFeatured: boolean;
   allowComments: boolean;
-  
+
   // Relations
   author: IBlogAuthor;
   category?: IBlogCategory | null;
@@ -83,7 +83,7 @@ export interface ICategory extends IBaseEntity {
   description?: string | null;
   type: string;
   parentId?: number | null;
-  
+
   // Relations
   parent?: ICategory | null;
   children?: ICategory[];

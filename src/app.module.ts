@@ -18,7 +18,8 @@ import { SanitizationPipe } from './common/pipes/sanitization.pipe';
 import { RateLimitInterceptor } from './common/interceptors/rate-limit.interceptor';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
 
-@Module({  imports: [
+@Module({
+  imports: [
     ConfigModule.forRoot({
       isGlobal: true,
     }),
@@ -60,12 +61,8 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(SecurityHeadersMiddleware)
-      .forRoutes('*');
-    
-    consumer
-      .apply(PermissionMiddleware)
-      .forRoutes('*');
+    consumer.apply(SecurityHeadersMiddleware).forRoutes('*');
+
+    consumer.apply(PermissionMiddleware).forRoutes('*');
   }
 }

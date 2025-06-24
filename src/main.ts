@@ -4,15 +4,12 @@ import * as cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  
+
   // Use cookie parser
   app.use(cookieParser());
-    // Enable CORS with security headers
+  // Enable CORS with security headers
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'https://www.phgrouptechs.com',
-    ],
+    origin: ['http://localhost:3000', 'https://www.phgrouptechs.com'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: [
@@ -35,7 +32,7 @@ async function bootstrap() {
       'X-RateLimit-Reset',
     ],
   });
-  
+
   const port = process.env.PORT ?? 5678;
   await app.listen(port);
   // Using console.log for server startup message as it's important startup information

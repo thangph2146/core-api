@@ -1,11 +1,11 @@
-import { 
-  Controller, 
-  Get, 
+import {
+  Controller,
+  Get,
   Post,
   Patch,
   Delete,
-  Param, 
-  Query, 
+  Param,
+  Query,
   Body,
   ParseIntPipe,
   UseGuards,
@@ -13,7 +13,10 @@ import {
 } from '@nestjs/common';
 import { BlogService } from './blog.service';
 import { AuthGuard } from '../auth/auth.guard';
-import { RequirePermissions, Public } from '../common/decorators/roles.decorator';
+import {
+  RequirePermissions,
+  Public,
+} from '../common/decorators/roles.decorator';
 import { CreateBlogDto, UpdateBlogDto } from './dto/blog.dto';
 
 @Controller('api/blogs')

@@ -143,8 +143,8 @@ export const PERMISSIONS = {
 /**
  * Danh sách tất cả permissions dưới dạng array
  */
-export const ALL_PERMISSIONS = Object.values(PERMISSIONS).flatMap(group => 
-  Object.values(group)
+export const ALL_PERMISSIONS = Object.values(PERMISSIONS).flatMap((group) =>
+  Object.values(group),
 );
 
 /**
@@ -156,7 +156,7 @@ export const DEFAULT_ROLES = {
     description: 'Full system access with all permissions',
     permissions: [PERMISSIONS.ADMIN.FULL_ACCESS], // Super admin chỉ cần full access
   },
-  
+
   ADMIN: {
     name: 'Admin',
     description: 'Administrative access with most permissions',
@@ -316,10 +316,7 @@ export const OWNERSHIP_PERMISSIONS = {
     PERMISSIONS.BLOGS.PUBLISH,
     PERMISSIONS.BLOGS.UNPUBLISH,
   ],
-  MEDIA: [
-    PERMISSIONS.MEDIA.UPDATE,
-    PERMISSIONS.MEDIA.DELETE,
-  ],
+  MEDIA: [PERMISSIONS.MEDIA.UPDATE, PERMISSIONS.MEDIA.DELETE],
   COMMENTS: [
     PERMISSIONS.COMMENTS.UPDATE,
     PERMISSIONS.COMMENTS.DELETE,

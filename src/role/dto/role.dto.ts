@@ -33,7 +33,9 @@ export class CreateRoleDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(160, { message: 'Meta description must not exceed 160 characters' })
+  @MaxLength(160, {
+    message: 'Meta description must not exceed 160 characters',
+  })
   metaDescription?: string;
 }
 
@@ -61,7 +63,9 @@ export class UpdateRoleDto {
 
   @IsOptional()
   @IsString()
-  @MaxLength(160, { message: 'Meta description must not exceed 160 characters' })
+  @MaxLength(160, {
+    message: 'Meta description must not exceed 160 characters',
+  })
   metaDescription?: string;
 }
 
@@ -132,8 +136,10 @@ export class RoleOptionDto {
 export class BulkRoleOperationDto {
   @IsArray()
   @IsInt({ each: true })
-  @Transform(({ value }) => 
-    Array.isArray(value) ? value.map(id => typeof id === 'string' ? parseInt(id, 10) : id) : []
+  @Transform(({ value }) =>
+    Array.isArray(value)
+      ? value.map((id) => (typeof id === 'string' ? parseInt(id, 10) : id))
+      : [],
   )
   roleIds: number[];
 }

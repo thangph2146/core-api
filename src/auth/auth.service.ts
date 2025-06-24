@@ -16,14 +16,14 @@ export class AuthService {
 
   /**
    * Find user by email
-   */  async findUserByEmail(email: string): Promise<IUser | null> {
+   */ async findUserByEmail(email: string): Promise<IUser | null> {
     const user = await this.prisma.user.findUnique({
       where: { email },
       include: {
         role: {
           include: {
-            permissions: true
-          }
+            permissions: true,
+          },
         },
         profile: true,
       },
@@ -33,14 +33,14 @@ export class AuthService {
   }
   /**
    * Find user by ID
-   */  async findUserById(id: number): Promise<IUser | null> {
+   */ async findUserById(id: number): Promise<IUser | null> {
     const user = await this.prisma.user.findUnique({
       where: { id },
       include: {
         role: {
           include: {
-            permissions: true
-          }
+            permissions: true,
+          },
         },
         profile: true,
       },
@@ -208,9 +208,10 @@ export class AuthService {
       this.logger.error('Error in userExists:', error);
       throw error;
     }
-  }  /**
+  }
+  /**
    * Map Prisma user to interface
-   */   private mapToInterface(user: any): IUser {
+   */ private mapToInterface(user: any): IUser {
     return {
       id: user.id,
       email: user.email,
@@ -239,7 +240,10 @@ export class AuthService {
             id: user.role.id,
             name: user.role.name,
             description: user.role.description,
-            permissions: user.role.permissions?.map((permission: any) => permission.name) || []
+            permissions:
+              user.role.permissions?.map(
+                (permission: any) => permission.name,
+              ) || [],
           }
         : undefined,
     };

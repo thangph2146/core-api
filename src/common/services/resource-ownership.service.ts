@@ -1,6 +1,9 @@
 import { Injectable, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
-import { PERMISSIONS, OWNERSHIP_PERMISSIONS } from '../constants/permissions.constants';
+import {
+  PERMISSIONS,
+  OWNERSHIP_PERMISSIONS,
+} from '../constants/permissions.constants';
 
 export interface ResourceOwnershipCheck {
   resourceType: string;
@@ -46,7 +49,11 @@ export class ResourceOwnershipService {
 
     // Nếu là action ownership, kiểm tra ownership
     if (this.isOwnershipAction(resourceType, action)) {
-      return await this.checkResourceOwnership(user.id, resourceType, resourceId);
+      return await this.checkResourceOwnership(
+        user.id,
+        resourceType,
+        resourceId,
+      );
     }
 
     return true;
@@ -61,11 +68,16 @@ export class ResourceOwnershipService {
     resourceId: string | number,
     action: string,
   ): Promise<void> {
-    const hasAccess = await this.canUserAccessResource(user, resourceType, resourceId, action);
-    
+    const hasAccess = await this.canUserAccessResource(
+      user,
+      resourceType,
+      resourceId,
+      action,
+    );
+
     if (!hasAccess) {
       throw new ForbiddenException(
-        `Access denied. You don't have permission to ${action} this ${resourceType}.`
+        `Access denied. You don't have permission to ${action} this ${resourceType}.`,
       );
     }
   }
@@ -77,7 +89,8 @@ export class ResourceOwnershipService {
     resourceType: string,
     resourceId: string | number,
   ): Promise<boolean> {
-    const id = typeof resourceId === 'string' ? parseInt(resourceId) : resourceId;
+    const id =
+      typeof resourceId === 'string' ? parseInt(resourceId) : resourceId;
 
     try {
       switch (resourceType.toLowerCase()) {
@@ -147,7 +160,10 @@ export class ResourceOwnershipService {
   /**
    * Kiểm tra xem user có quyền "manage all" không
    */
-  private hasManageAllPermission(userPermissions: string[], resourceType: string): boolean {
+  private hasManageAllPermission(
+    userPermissions: string[],
+    resourceType: string,
+  ): boolean {
     switch (resourceType.toLowerCase()) {
       case 'blogs':
         return userPermissions.includes(PERMISSIONS.BLOGS.MANAGE_ALL);
@@ -167,7 +183,11 @@ export class ResourceOwnershipService {
   /**
    * Kiểm tra quyền cơ bản cho action
    */
-  private hasBasicPermission(userPermissions: string[], resourceType: string, action: string): boolean {
+  private hasBasicPermission(
+    userPermissions: string[],
+    resourceType: string,
+    action: string,
+  ): boolean {
     // Mapping action names to permission names
     const permissionMap: Record<string, string> = {
       create: 'create',
@@ -181,9 +201,10 @@ export class ResourceOwnershipService {
       organize: 'organize',
     };
 
-    const permissionAction = permissionMap[action.toLowerCase()] || action.toLowerCase();
+    const permissionAction =
+      permissionMap[action.toLowerCase()] || action.toLowerCase();
     const permission = `${resourceType.toLowerCase()}:${permissionAction}`;
-    
+
     return userPermissions.includes(permission);
   }
 
@@ -216,7 +237,7 @@ export class ResourceOwnershipService {
     // Nếu có quyền "manage all", xem được tất cả
     if (this.hasManageAllPermission(userPermissions, resourceType)) {
       return {};
-    }    // Chỉ xem được resources của chính mình
+    } // Chỉ xem được resources của chính mình
     switch (resourceType.toLowerCase()) {
       case 'blogs':
         return { authorId: user.id };
@@ -261,7 +282,9 @@ export class ResourceOwnershipService {
     // Nếu là ownership action, kiểm tra từng resource
     if (this.isOwnershipAction(resourceType, action)) {
       const results = await Promise.all(
-        resourceIds.map(id => this.checkResourceOwnership(user.id, resourceType, id))
+        resourceIds.map((id) =>
+          this.checkResourceOwnership(user.id, resourceType, id),
+        ),
       );
       return results;
     }

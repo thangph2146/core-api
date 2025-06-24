@@ -1,17 +1,20 @@
-import { 
-  Controller, 
-  Get, 
-  Post, 
-  Put, 
-  Delete, 
-  Body, 
-  Param, 
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
   Query,
   UseGuards,
 } from '@nestjs/common';
 import { CategoryService } from './category.service';
 import { AuthGuard } from '../auth/auth.guard';
-import { RequirePermissions, Public } from '../common/decorators/roles.decorator';
+import {
+  RequirePermissions,
+  Public,
+} from '../common/decorators/roles.decorator';
 
 @Controller('categories')
 export class CategoryController {
@@ -37,11 +40,11 @@ export class CategoryController {
   @Public()
   async findOne(
     @Param('identifier') identifier: string,
-    @Query('type') type?: string
+    @Query('type') type?: string,
   ) {
     // Check if identifier is a number (ID) or string (slug)
     const isNumeric = /^\d+$/.test(identifier);
-    
+
     if (isNumeric) {
       return this.categoryService.findOne(parseInt(identifier, 10));
     } else {

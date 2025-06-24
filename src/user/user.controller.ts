@@ -91,15 +91,18 @@ export class UserController {
       console.log('🔍 Bulk Delete - Received userIds:', userIds);
 
       // Check permissions for bulk operations - requires manage all permission
-      const hasPermission = await this.resourceOwnership.canUserAccessMultipleResources(
-        req.user,
-        'users',
-        userIds,
-        'delete'
-      );
+      const hasPermission =
+        await this.resourceOwnership.canUserAccessMultipleResources(
+          req.user,
+          'users',
+          userIds,
+          'delete',
+        );
 
       if (!hasPermission.every(Boolean)) {
-        throw new ForbiddenException('Insufficient permissions for bulk delete operation');
+        throw new ForbiddenException(
+          'Insufficient permissions for bulk delete operation',
+        );
       }
 
       const result = await this.userService.bulkDelete(userIds);
@@ -204,7 +207,10 @@ export class UserController {
 
   @Get(':id/detail')
   @UserManagement.ViewProfile()
-  async findDetailById(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+  async findDetailById(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: any,
+  ) {
     try {
       // Check if user can view this user's profile
       await this.resourceOwnership.requireResourceAccess(
@@ -253,7 +259,8 @@ export class UserController {
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
-  }  @Patch(':id')
+  }
+  @Patch(':id')
   @UserManagement.Update()
   async update(
     @Param('id', ParseIntPipe) id: number,
@@ -266,7 +273,7 @@ export class UserController {
         req.user,
         'users',
         id,
-        'update'
+        'update',
       );
 
       const user = await this.userService.update(id, updateUserDto);
@@ -296,7 +303,7 @@ export class UserController {
         req.user,
         'users',
         id,
-        'delete'
+        'delete',
       );
 
       await this.userService.remove(id);

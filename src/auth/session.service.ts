@@ -17,7 +17,10 @@ export class SessionService {
   /**
    * Create a new session
    */
-  async createSession(userId: number, expiresInHours: number = 24 * 7): Promise<ISession> {
+  async createSession(
+    userId: number,
+    expiresInHours: number = 24 * 7,
+  ): Promise<ISession> {
     const sessionId = randomBytes(32).toString('hex');
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + expiresInHours);
@@ -57,7 +60,10 @@ export class SessionService {
   /**
    * Update session expiry
    */
-  async updateSession(sessionId: string, expiresInHours: number = 24 * 7): Promise<ISession | null> {
+  async updateSession(
+    sessionId: string,
+    expiresInHours: number = 24 * 7,
+  ): Promise<ISession | null> {
     const expiresAt = new Date();
     expiresAt.setHours(expiresAt.getHours() + expiresInHours);
 

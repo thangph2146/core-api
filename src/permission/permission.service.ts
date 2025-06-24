@@ -110,13 +110,14 @@ export class PermissionService {
     });
   }
   async create(createPermissionDto: CreatePermissionDto): Promise<Permission> {
-    const { name, description, metaTitle, metaDescription } = createPermissionDto;
+    const { name, description, metaTitle, metaDescription } =
+      createPermissionDto;
 
     // Check if permission with same name already exists
     const existingPermission = await this.findByName(name);
     if (existingPermission) {
       throw new ConflictException(
-        `Permission with name '${name}' already exists`
+        `Permission with name '${name}' already exists`,
       );
     }
 
@@ -132,7 +133,7 @@ export class PermissionService {
 
   async update(
     id: number,
-    updatePermissionDto: UpdatePermissionDto
+    updatePermissionDto: UpdatePermissionDto,
   ): Promise<Permission> {
     const permission = await this.findById(id);
     if (!permission) {
@@ -140,11 +141,16 @@ export class PermissionService {
     }
 
     // Check if name is being updated and if it conflicts
-    if (updatePermissionDto.name && updatePermissionDto.name !== permission.name) {
-      const existingPermission = await this.findByName(updatePermissionDto.name);
+    if (
+      updatePermissionDto.name &&
+      updatePermissionDto.name !== permission.name
+    ) {
+      const existingPermission = await this.findByName(
+        updatePermissionDto.name,
+      );
       if (existingPermission) {
         throw new ConflictException(
-          `Permission with name '${updatePermissionDto.name}' already exists`
+          `Permission with name '${updatePermissionDto.name}' already exists`,
         );
       }
     }
@@ -179,9 +185,7 @@ export class PermissionService {
     });
 
     if (!permission) {
-      throw new NotFoundException(
-        `Deleted permission with ID ${id} not found`
-      );
+      throw new NotFoundException(`Deleted permission with ID ${id} not found`);
     }
 
     return this.prisma.permission.update({

@@ -35,7 +35,8 @@ export const RequireOwnership = (resourceType: string) =>
 /**
  * Decorator cho các endpoint chỉ Super Admin mới truy cập được
  */
-export const SuperAdminOnly = () => RequirePermissions(PERMISSIONS.ADMIN.FULL_ACCESS);
+export const SuperAdminOnly = () =>
+  RequirePermissions(PERMISSIONS.ADMIN.FULL_ACCESS);
 
 /**
  * Decorator cho các endpoint quản lý người dùng

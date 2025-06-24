@@ -1,4 +1,9 @@
-import { Injectable, NestInterceptor, ExecutionContext, CallHandler } from '@nestjs/common';
+import {
+  Injectable,
+  NestInterceptor,
+  ExecutionContext,
+  CallHandler,
+} from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { Reflector } from '@nestjs/core';
 
@@ -12,10 +17,13 @@ export class RateLimitInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
     const response = context.switchToHttp().getResponse();
-    
+
     // Get rate limit from decorator or use default
-    const limit = this.reflector.get<number>('rateLimit', context.getHandler()) || 100;
-    const windowMs = this.reflector.get<number>('rateLimitWindow', context.getHandler()) || 60000; // 1 minute
+    const limit =
+      this.reflector.get<number>('rateLimit', context.getHandler()) || 100;
+    const windowMs =
+      this.reflector.get<number>('rateLimitWindow', context.getHandler()) ||
+      60000; // 1 minute
 
     const key = this.getClientKey(request);
     const now = Date.now();
@@ -30,15 +38,18 @@ export class RateLimitInterceptor implements NestInterceptor {
     }
 
     // Check rate limit
-    const clientData = requestCounts.get(key) || { count: 0, resetTime: now + windowMs };
-    
+    const clientData = requestCounts.get(key) || {
+      count: 0,
+      resetTime: now + windowMs,
+    };
+
     if (clientData.count >= limit) {
       response.status(429).json({
         success: false,
         message: 'Quá nhiều yêu cầu, vui lòng thử lại sau',
         retryAfter: Math.ceil((clientData.resetTime - now) / 1000),
       });
-      return new Observable(observer => observer.complete());
+      return new Observable((observer) => observer.complete());
     }
 
     // Increment counter
@@ -47,8 +58,14 @@ export class RateLimitInterceptor implements NestInterceptor {
 
     // Set rate limit headers
     response.setHeader('X-RateLimit-Limit', limit);
-    response.setHeader('X-RateLimit-Remaining', Math.max(0, limit - clientData.count));
-    response.setHeader('X-RateLimit-Reset', new Date(clientData.resetTime).toISOString());
+    response.setHeader(
+      'X-RateLimit-Remaining',
+      Math.max(0, limit - clientData.count),
+    );
+    response.setHeader(
+      'X-RateLimit-Reset',
+      new Date(clientData.resetTime).toISOString(),
+    );
 
     return next.handle();
   }
@@ -62,7 +79,8 @@ export class RateLimitInterceptor implements NestInterceptor {
 }
 
 // Decorator for custom rate limits
-export const RateLimit = (limit: number, windowMs: number = 60000) =>
+export const RateLimit =
+  (limit: number, windowMs: number = 60000) =>
   (target: any, propertyKey: string, descriptor: PropertyDescriptor) => {
     Reflect.defineMetadata('rateLimit', limit, descriptor.value);
     Reflect.defineMetadata('rateLimitWindow', windowMs, descriptor.value);

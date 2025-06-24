@@ -60,7 +60,7 @@ export class UserService {
 
     // Build orderBy
     const orderBy: Prisma.UserOrderByWithRelationInput = {};
-    orderBy[sortBy] = sortOrder;    // Include related data (without profile for list API)
+    orderBy[sortBy] = sortOrder; // Include related data (without profile for list API)
     const include: Prisma.UserInclude = {
       role: {
         select: {
@@ -89,7 +89,8 @@ export class UserService {
       }),
       this.prisma.user.count({ where }),
     ]);
-    const totalPages = Math.ceil(total / limitNum);    return {
+    const totalPages = Math.ceil(total / limitNum);
+    return {
       data: users.map(this.formatUserListResponse),
       meta: {
         total,
@@ -181,7 +182,8 @@ export class UserService {
           socialLinks: profile.socialLinks || null,
         },
       };
-    }    const user = await this.prisma.user.create({
+    }
+    const user = await this.prisma.user.create({
       data: userCreateData,
       include: {
         role: {
@@ -208,7 +210,7 @@ export class UserService {
     updateUserDto: UpdateUserDto,
   ): Promise<UserResponseDto> {
     // Extract profile data from updateUserDto if present
-    const { profile, ...userData } = updateUserDto as any;    // Update user data first
+    const { profile, ...userData } = updateUserDto as any; // Update user data first
     const user = await this.prisma.user.update({
       where: { id },
       data: userData,
@@ -283,7 +285,8 @@ export class UserService {
   }
 
   // Restore a user (undelete)
-  async restore(id: number): Promise<UserResponseDto> {    // Check if user exists and is deleted
+  async restore(id: number): Promise<UserResponseDto> {
+    // Check if user exists and is deleted
     const user = await this.prisma.user.findUnique({
       where: { id },
       include: {

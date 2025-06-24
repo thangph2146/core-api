@@ -96,10 +96,7 @@ export class CategoryService {
     });
   }
 
-  async update(params: {
-    where: any;
-    data: any;
-  }): Promise<any> {
+  async update(params: { where: any; data: any }): Promise<any> {
     const { where, data } = params;
     return this.prisma.category.update({
       data,

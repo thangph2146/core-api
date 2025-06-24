@@ -18,9 +18,11 @@ export interface ITokens {
 @Injectable()
 export class JwtService {
   private readonly JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
-  private readonly JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key';
+  private readonly JWT_REFRESH_SECRET =
+    process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key';
   private readonly JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '15m';
-  private readonly JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN || '7d';
+  private readonly JWT_REFRESH_EXPIRES_IN =
+    process.env.JWT_REFRESH_EXPIRES_IN || '7d';
 
   /**
    * Generate access and refresh tokens
@@ -70,7 +72,7 @@ export class JwtService {
    */
   refreshAccessToken(refreshToken: string): string {
     const payload = this.verifyRefreshToken(refreshToken);
-    
+
     // Create new payload without iat and exp
     const newPayload: IJwtPayload = {
       userId: payload.userId,

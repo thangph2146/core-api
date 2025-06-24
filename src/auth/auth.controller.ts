@@ -255,7 +255,7 @@ export class AuthController {
       const tokens = this.jwtService.generateTokens(user);
 
       // Create session
-      const session = await this.sessionService.createSession(user.id);      // For development: don't set HTTP-only cookies since frontend and API are on different ports
+      const session = await this.sessionService.createSession(user.id); // For development: don't set HTTP-only cookies since frontend and API are on different ports
       // In production, you'd want to configure proper domain settings
       if (process.env.NODE_ENV === 'production') {
         // Set HTTP-only cookies for production
@@ -566,14 +566,18 @@ export class AuthController {
       const payload = this.jwtService.verifyAccessToken(token);
 
       // Update the user
-      const updatedUser = await this.authService.updateUser(payload.userId, updateUserDto);
+      const updatedUser = await this.authService.updateUser(
+        payload.userId,
+        updateUserDto,
+      );
 
       if (!updatedUser) {
         throw new HttpException('User not found', HttpStatus.NOT_FOUND);
       }
 
       // Return user without password
-      const { ...userWithoutPassword } = updatedUser;      return {
+      const { ...userWithoutPassword } = updatedUser;
+      return {
         success: true,
         data: userWithoutPassword,
         message: 'Profile updated successfully',

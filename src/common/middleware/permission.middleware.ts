@@ -32,24 +32,24 @@ export class PermissionMiddleware implements NestMiddleware {
     // Add resource ownership checking for specific routes
     const { method, originalUrl } = req;
     const pathSegments = originalUrl.split('/').filter(Boolean);
-    
+
     // Extract resource type and ID from URL
     const resourceInfo = this.extractResourceInfo(pathSegments);
-    
+
     if (resourceInfo) {
       const { resourceType, resourceId, action } = resourceInfo;
-      
+
       try {
         // Check if user can access this resource
         await this.resourceOwnership.requireResourceAccess(
           req.user,
           resourceType,
           resourceId,
-          action
+          action,
         );
       } catch (error) {
         throw new ForbiddenException(
-          `Access denied: You don't have permission to ${action} this ${resourceType}`
+          `Access denied: You don't have permission to ${action} this ${resourceType}`,
         );
       }
     }
@@ -69,7 +69,7 @@ export class PermissionMiddleware implements NestMiddleware {
     if (pathSegments.length >= 3 && pathSegments[0] === 'api') {
       const resourceType = pathSegments[1];
       const resourceId = pathSegments[2];
-      
+
       // Skip if ID is not numeric (e.g., /api/users/stats)
       if (!/^\d+$/.test(resourceId)) {
         return null;
@@ -109,7 +109,7 @@ export class ResourceOwnershipMiddleware implements NestMiddleware {
 
     const { method, params } = req;
     const resourceId = params?.id;
-    
+
     // Only check ownership for specific operations with resource IDs
     if (!resourceId || !/^\d+$/.test(resourceId)) {
       return next();
@@ -117,14 +117,14 @@ export class ResourceOwnershipMiddleware implements NestMiddleware {
 
     // Determine resource type from URL
     const resourceType = this.getResourceTypeFromUrl(req.originalUrl);
-    
+
     if (!resourceType) {
       return next();
     }
 
     // Determine action from HTTP method
     const action = this.getActionFromMethod(method);
-    
+
     // Check ownership for ownership-required actions
     const ownershipActions = ['update', 'delete'];
     if (ownershipActions.includes(action)) {
@@ -133,7 +133,7 @@ export class ResourceOwnershipMiddleware implements NestMiddleware {
           req.user,
           resourceType,
           resourceId,
-          action
+          action,
         );
       } catch (error) {
         throw new ForbiddenException(error.message);
@@ -169,7 +169,7 @@ export class PermissionAuditMiddleware implements NestMiddleware {
 
   async use(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     const { user, method, originalUrl, ip } = req;
-    
+
     // Log permission-related actions
     if (user && this.shouldAuditRequest(originalUrl)) {
       try {
@@ -183,7 +183,7 @@ export class PermissionAuditMiddleware implements NestMiddleware {
           userRole: user.role?.name,
           userPermissions: user.permissions?.length || 0,
         });
-        
+
         // You can also store this in database if needed
         // await this.prisma.auditLog.create({ ... });
       } catch (error) {
@@ -202,7 +202,7 @@ export class PermissionAuditMiddleware implements NestMiddleware {
       '/api/permissions',
       '/api/admin',
     ];
-    
-    return auditPatterns.some(pattern => url.includes(pattern));
+
+    return auditPatterns.some((pattern) => url.includes(pattern));
   }
 }

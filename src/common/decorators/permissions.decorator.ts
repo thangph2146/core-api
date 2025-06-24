@@ -15,9 +15,12 @@ export class UserManagement {
   static Delete = () => RequirePermissions(PERMISSIONS.USERS.DELETE);
   static ManageAll = () => RequirePermissions(PERMISSIONS.USERS.MANAGE_ALL);
   static ViewProfile = () => RequirePermissions(PERMISSIONS.USERS.VIEW_PROFILE);
-  static UpdateOwnProfile = () => RequirePermissions(PERMISSIONS.USERS.UPDATE_OWN_PROFILE);
-  static ChangePassword = () => RequirePermissions(PERMISSIONS.USERS.CHANGE_PASSWORD);
-  static ResetPassword = () => RequirePermissions(PERMISSIONS.USERS.RESET_PASSWORD);
+  static UpdateOwnProfile = () =>
+    RequirePermissions(PERMISSIONS.USERS.UPDATE_OWN_PROFILE);
+  static ChangePassword = () =>
+    RequirePermissions(PERMISSIONS.USERS.CHANGE_PASSWORD);
+  static ResetPassword = () =>
+    RequirePermissions(PERMISSIONS.USERS.RESET_PASSWORD);
   static Impersonate = () => RequirePermissions(PERMISSIONS.USERS.IMPERSONATE);
   static FullAccess = () => RequirePermissions(PERMISSIONS.ADMIN.FULL_ACCESS);
 }
@@ -30,8 +33,10 @@ export class RoleManagement {
   static Read = () => RequirePermissions(PERMISSIONS.ROLES.READ);
   static Update = () => RequirePermissions(PERMISSIONS.ROLES.UPDATE);
   static Delete = () => RequirePermissions(PERMISSIONS.ROLES.DELETE);
-  static AssignPermissions = () => RequirePermissions(PERMISSIONS.ROLES.ASSIGN_PERMISSIONS);
-  static AssignToUsers = () => RequirePermissions(PERMISSIONS.ROLES.ASSIGN_TO_USERS);
+  static AssignPermissions = () =>
+    RequirePermissions(PERMISSIONS.ROLES.ASSIGN_PERMISSIONS);
+  static AssignToUsers = () =>
+    RequirePermissions(PERMISSIONS.ROLES.ASSIGN_TO_USERS);
   static FullAccess = () => RequirePermissions(PERMISSIONS.ADMIN.FULL_ACCESS);
 }
 
@@ -69,7 +74,8 @@ export class CategoryManagement {
   static Read = () => RequirePermissions(PERMISSIONS.CATEGORIES.READ);
   static Update = () => RequirePermissions(PERMISSIONS.CATEGORIES.UPDATE);
   static Delete = () => RequirePermissions(PERMISSIONS.CATEGORIES.DELETE);
-  static ManageHierarchy = () => RequirePermissions(PERMISSIONS.CATEGORIES.MANAGE_HIERARCHY);
+  static ManageHierarchy = () =>
+    RequirePermissions(PERMISSIONS.CATEGORIES.MANAGE_HIERARCHY);
   static FullAccess = () => RequirePermissions(PERMISSIONS.ADMIN.FULL_ACCESS);
 }
 
@@ -106,9 +112,12 @@ export class RecruitmentManagement {
   static Update = () => RequirePermissions(PERMISSIONS.RECRUITMENT.UPDATE);
   static Delete = () => RequirePermissions(PERMISSIONS.RECRUITMENT.DELETE);
   static Publish = () => RequirePermissions(PERMISSIONS.RECRUITMENT.PUBLISH);
-  static ManageAll = () => RequirePermissions(PERMISSIONS.RECRUITMENT.MANAGE_ALL);
-  static ViewApplications = () => RequirePermissions(PERMISSIONS.RECRUITMENT.VIEW_APPLICATIONS);
-  static ManageApplications = () => RequirePermissions(PERMISSIONS.RECRUITMENT.MANAGE_APPLICATIONS);
+  static ManageAll = () =>
+    RequirePermissions(PERMISSIONS.RECRUITMENT.MANAGE_ALL);
+  static ViewApplications = () =>
+    RequirePermissions(PERMISSIONS.RECRUITMENT.VIEW_APPLICATIONS);
+  static ManageApplications = () =>
+    RequirePermissions(PERMISSIONS.RECRUITMENT.MANAGE_APPLICATIONS);
   static FullAccess = () => RequirePermissions(PERMISSIONS.ADMIN.FULL_ACCESS);
 }
 
@@ -141,7 +150,8 @@ export class ContactManagement {
  */
 export class AnalyticsManagement {
   static ViewBasic = () => RequirePermissions(PERMISSIONS.ANALYTICS.VIEW_BASIC);
-  static ViewAdvanced = () => RequirePermissions(PERMISSIONS.ANALYTICS.VIEW_ADVANCED);
+  static ViewAdvanced = () =>
+    RequirePermissions(PERMISSIONS.ANALYTICS.VIEW_ADVANCED);
   static Export = () => RequirePermissions(PERMISSIONS.ANALYTICS.EXPORT);
   static FullAccess = () => RequirePermissions(PERMISSIONS.ADMIN.FULL_ACCESS);
 }
@@ -153,7 +163,8 @@ export class SettingsManagement {
   static Read = () => RequirePermissions(PERMISSIONS.SETTINGS.READ);
   static Update = () => RequirePermissions(PERMISSIONS.SETTINGS.UPDATE);
   static ManageSEO = () => RequirePermissions(PERMISSIONS.SETTINGS.MANAGE_SEO);
-  static ManageGeneral = () => RequirePermissions(PERMISSIONS.SETTINGS.MANAGE_GENERAL);
+  static ManageGeneral = () =>
+    RequirePermissions(PERMISSIONS.SETTINGS.MANAGE_GENERAL);
   static FullAccess = () => RequirePermissions(PERMISSIONS.ADMIN.FULL_ACCESS);
 }
 
@@ -162,14 +173,18 @@ export class SettingsManagement {
  */
 export class AdminManagement {
   static FullAccess = () => RequirePermissions(PERMISSIONS.ADMIN.FULL_ACCESS);
-  static SystemSettings = () => RequirePermissions(PERMISSIONS.ADMIN.SYSTEM_SETTINGS);
+  static SystemSettings = () =>
+    RequirePermissions(PERMISSIONS.ADMIN.SYSTEM_SETTINGS);
   static ViewLogs = () => RequirePermissions(PERMISSIONS.ADMIN.VIEW_LOGS);
-  static ManageSessions = () => RequirePermissions(PERMISSIONS.ADMIN.MANAGE_SESSIONS);
-  static MaintenanceMode = () => RequirePermissions(PERMISSIONS.ADMIN.MAINTENANCE_MODE);
+  static ManageSessions = () =>
+    RequirePermissions(PERMISSIONS.ADMIN.MANAGE_SESSIONS);
+  static MaintenanceMode = () =>
+    RequirePermissions(PERMISSIONS.ADMIN.MAINTENANCE_MODE);
 }
 
 // Special decorators
-export const SuperAdminOnly = () => RequirePermissions(PERMISSIONS.ADMIN.FULL_ACCESS);
+export const SuperAdminOnly = () =>
+  RequirePermissions(PERMISSIONS.ADMIN.FULL_ACCESS);
 
 // Resource ownership decorators (for checking if user owns the resource)
 export const RequireOwnership = (resourceType: string) =>

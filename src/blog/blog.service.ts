@@ -259,9 +259,11 @@ export class BlogService {
     return this.prisma.blog.create({
       data: {
         ...blogData,
-        tags: tagIds ? {
-          connect: tagIds.map((id: number) => ({ id }))
-        } : undefined,
+        tags: tagIds
+          ? {
+              connect: tagIds.map((id: number) => ({ id })),
+            }
+          : undefined,
       },
       include: {
         author: {
@@ -290,7 +292,10 @@ export class BlogService {
     }
 
     // Only author or admin can edit
-    if (existingBlog.authorId !== user.id && user.role?.name !== 'Super Admin') {
+    if (
+      existingBlog.authorId !== user.id &&
+      user.role?.name !== 'Super Admin'
+    ) {
       throw new Error('Access denied');
     }
 
@@ -300,9 +305,11 @@ export class BlogService {
       where: { id },
       data: {
         ...blogData,
-        tags: tagIds ? {
-          set: tagIds.map((id: number) => ({ id }))
-        } : undefined,
+        tags: tagIds
+          ? {
+              set: tagIds.map((id: number) => ({ id })),
+            }
+          : undefined,
       },
       include: {
         author: {
@@ -330,7 +337,10 @@ export class BlogService {
     }
 
     // Only author or admin can delete
-    if (existingBlog.authorId !== user.id && user.role?.name !== 'Super Admin') {
+    if (
+      existingBlog.authorId !== user.id &&
+      user.role?.name !== 'Super Admin'
+    ) {
       throw new Error('Access denied');
     }
 
@@ -362,7 +372,7 @@ export class BlogService {
   async publish(id: number): Promise<any> {
     return this.prisma.blog.update({
       where: { id },
-      data: { 
+      data: {
         publishedAt: new Date(),
         // Assuming status ID 1 is "Published"
         statusId: 1,
@@ -385,7 +395,7 @@ export class BlogService {
   async unpublish(id: number): Promise<any> {
     return this.prisma.blog.update({
       where: { id },
-      data: { 
+      data: {
         publishedAt: null,
         // Assuming status ID 2 is "Draft"
         statusId: 2,

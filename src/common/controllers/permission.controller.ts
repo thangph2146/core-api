@@ -12,10 +12,10 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { AuthGuard } from '../../auth/auth.guard';
-import { 
-  PermissionManagement, 
-  RoleManagement, 
-  AdminManagement 
+import {
+  PermissionManagement,
+  RoleManagement,
+  AdminManagement,
 } from '../decorators/permissions.decorator';
 import { PermissionManagementService } from '../services/permission-management.service';
 
@@ -45,7 +45,9 @@ export class PermissionController {
         message: 'Permissions retrieved successfully',
       };
     } catch (error) {
-      throw new BadRequestException(error.message || 'Failed to retrieve permissions');
+      throw new BadRequestException(
+        error.message || 'Failed to retrieve permissions',
+      );
     }
   }
 
@@ -53,14 +55,17 @@ export class PermissionController {
   @PermissionManagement.Read()
   async getPermissionsByCategory() {
     try {
-      const permissions = await this.permissionService.getPermissionsByCategory();
+      const permissions =
+        await this.permissionService.getPermissionsByCategory();
       return {
         success: true,
         data: permissions,
         message: 'Permissions by category retrieved successfully',
       };
     } catch (error) {
-      throw new BadRequestException(error.message || 'Failed to retrieve permissions by category');
+      throw new BadRequestException(
+        error.message || 'Failed to retrieve permissions by category',
+      );
     }
   }
 
@@ -75,7 +80,9 @@ export class PermissionController {
         message: 'Permission statistics retrieved successfully',
       };
     } catch (error) {
-      throw new BadRequestException(error.message || 'Failed to retrieve permission statistics');
+      throw new BadRequestException(
+        error.message || 'Failed to retrieve permission statistics',
+      );
     }
   }
 
@@ -83,14 +90,17 @@ export class PermissionController {
   @AdminManagement.FullAccess()
   async getUsersByPermission(@Param('permissionName') permissionName: string) {
     try {
-      const users = await this.permissionService.getUsersByPermission(permissionName);
+      const users =
+        await this.permissionService.getUsersByPermission(permissionName);
       return {
         success: true,
         data: users,
         message: `Users with permission ${permissionName} retrieved successfully`,
       };
     } catch (error) {
-      throw new BadRequestException(error.message || 'Failed to retrieve users by permission');
+      throw new BadRequestException(
+        error.message || 'Failed to retrieve users by permission',
+      );
     }
   }
 
@@ -106,7 +116,9 @@ export class PermissionController {
         message: 'Permissions synchronized successfully',
       };
     } catch (error) {
-      throw new BadRequestException(error.message || 'Failed to sync permissions');
+      throw new BadRequestException(
+        error.message || 'Failed to sync permissions',
+      );
     }
   }
 }
@@ -129,7 +141,9 @@ export class RolePermissionController {
         message: 'Roles retrieved successfully',
       };
     } catch (error) {
-      throw new BadRequestException(error.message || 'Failed to retrieve roles');
+      throw new BadRequestException(
+        error.message || 'Failed to retrieve roles',
+      );
     }
   }
 
@@ -157,19 +171,26 @@ export class RolePermissionController {
   ) {
     try {
       const { permissionIds } = assignPermissionsDto;
-      
+
       if (!Array.isArray(permissionIds) || permissionIds.length === 0) {
-        throw new BadRequestException('Permission IDs must be a non-empty array');
+        throw new BadRequestException(
+          'Permission IDs must be a non-empty array',
+        );
       }
 
-      const role = await this.permissionService.assignPermissionsToRole(id, permissionIds);
+      const role = await this.permissionService.assignPermissionsToRole(
+        id,
+        permissionIds,
+      );
       return {
         success: true,
         data: role,
         message: 'Permissions assigned successfully',
       };
     } catch (error) {
-      throw new BadRequestException(error.message || 'Failed to assign permissions');
+      throw new BadRequestException(
+        error.message || 'Failed to assign permissions',
+      );
     }
   }
 
@@ -182,19 +203,26 @@ export class RolePermissionController {
   ) {
     try {
       const { permissionIds } = removePermissionsDto;
-      
+
       if (!Array.isArray(permissionIds) || permissionIds.length === 0) {
-        throw new BadRequestException('Permission IDs must be a non-empty array');
+        throw new BadRequestException(
+          'Permission IDs must be a non-empty array',
+        );
       }
 
-      const role = await this.permissionService.removePermissionsFromRole(id, permissionIds);
+      const role = await this.permissionService.removePermissionsFromRole(
+        id,
+        permissionIds,
+      );
       return {
         success: true,
         data: role,
         message: 'Permissions removed successfully',
       };
     } catch (error) {
-      throw new BadRequestException(error.message || 'Failed to remove permissions');
+      throw new BadRequestException(
+        error.message || 'Failed to remove permissions',
+      );
     }
   }
 }
@@ -210,14 +238,17 @@ export class UserPermissionController {
   @PermissionManagement.Read()
   async getUserPermissions(@Param('userId', ParseIntPipe) userId: number) {
     try {
-      const permissions = await this.permissionService.getUserPermissions(userId);
+      const permissions =
+        await this.permissionService.getUserPermissions(userId);
       return {
         success: true,
         data: permissions,
         message: 'User permissions retrieved successfully',
       };
     } catch (error) {
-      throw new BadRequestException(error.message || 'Failed to retrieve user permissions');
+      throw new BadRequestException(
+        error.message || 'Failed to retrieve user permissions',
+      );
     }
   }
 
@@ -230,19 +261,24 @@ export class UserPermissionController {
   ) {
     try {
       const { permission } = body;
-      
+
       if (!permission) {
         throw new BadRequestException('Permission name is required');
       }
 
-      const hasPermission = await this.permissionService.userHasPermission(userId, permission);
+      const hasPermission = await this.permissionService.userHasPermission(
+        userId,
+        permission,
+      );
       return {
         success: true,
         data: { hasPermission },
         message: 'Permission check completed',
       };
     } catch (error) {
-      throw new BadRequestException(error.message || 'Failed to check user permission');
+      throw new BadRequestException(
+        error.message || 'Failed to check user permission',
+      );
     }
   }
 
@@ -255,19 +291,22 @@ export class UserPermissionController {
   ) {
     try {
       const { permissions } = body;
-      
+
       if (!Array.isArray(permissions) || permissions.length === 0) {
         throw new BadRequestException('Permissions must be a non-empty array');
       }
 
-      const hasAnyPermission = await this.permissionService.userHasAnyPermission(userId, permissions);
+      const hasAnyPermission =
+        await this.permissionService.userHasAnyPermission(userId, permissions);
       return {
         success: true,
         data: { hasAnyPermission },
         message: 'Permission check completed',
       };
     } catch (error) {
-      throw new BadRequestException(error.message || 'Failed to check user permissions');
+      throw new BadRequestException(
+        error.message || 'Failed to check user permissions',
+      );
     }
   }
 }

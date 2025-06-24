@@ -33,7 +33,7 @@ export class AuditLogInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const startTime = Date.now();
     const request = context.switchToHttp().getRequest();
-    
+
     // Extract audit information
     const { method, url, user, body, params, query } = request;
     const userAgent = request.headers['user-agent'];
@@ -76,7 +76,7 @@ export class AuditLogInterceptor implements NestInterceptor {
           duration,
         } as AuditLogData);
         throw error;
-      })
+      }),
     );
   }
 
@@ -97,9 +97,11 @@ export class AuditLogInterceptor implements NestInterceptor {
 
     // Audit state-changing methods
     const auditMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
-    
-    return auditMethods.includes(method) && 
-           sensitivePatterns.some(pattern => pattern.test(url));
+
+    return (
+      auditMethods.includes(method) &&
+      sensitivePatterns.some((pattern) => pattern.test(url))
+    );
   }
 
   private extractAction(method: string, url: string): string {
@@ -110,34 +112,38 @@ export class AuditLogInterceptor implements NestInterceptor {
     if (url.includes('/signout')) return 'signout';
     if (url.includes('/assign-role')) return 'assign_role';
     if (url.includes('/upload')) return 'upload';
-    
+
     // Map HTTP methods to actions
     switch (method) {
-      case 'POST': return 'create';
+      case 'POST':
+        return 'create';
       case 'PUT':
-      case 'PATCH': return 'update';
-      case 'DELETE': return 'delete';
-      default: return 'unknown';
+      case 'PATCH':
+        return 'update';
+      case 'DELETE':
+        return 'delete';
+      default:
+        return 'unknown';
     }
   }
 
   private extractResource(url: string): string {
     const segments = url.split('/').filter(Boolean);
-    
+
     // Find the main resource from URL segments
     const resourceMap = {
-      'users': 'user',
-      'roles': 'role',
-      'permissions': 'permission',
-      'blogs': 'blog',
-      'categories': 'category',
-      'tags': 'tag',
-      'media': 'media',
-      'recruitment': 'recruitment',
-      'services': 'service',
-      'contacts': 'contact',
-      'newsletter': 'newsletter',
-      'auth': 'auth',
+      users: 'user',
+      roles: 'role',
+      permissions: 'permission',
+      blogs: 'blog',
+      categories: 'category',
+      tags: 'tag',
+      media: 'media',
+      recruitment: 'recruitment',
+      services: 'service',
+      contacts: 'contact',
+      newsletter: 'newsletter',
+      auth: 'auth',
     };
 
     for (const segment of segments) {
@@ -151,7 +157,7 @@ export class AuditLogInterceptor implements NestInterceptor {
 
   private sanitizeDetails(details: any): any {
     if (!details || typeof details !== 'object') return details;
-    
+
     // Remove sensitive information
     const sensitiveFields = [
       'password',
@@ -164,13 +170,15 @@ export class AuditLogInterceptor implements NestInterceptor {
 
     const sanitizeObject = (obj: any): any => {
       if (!obj || typeof obj !== 'object') return obj;
-      
+
       const result = Array.isArray(obj) ? [] : {};
-      
+
       for (const [key, value] of Object.entries(obj)) {
-        if (sensitiveFields.some(field => 
-          key.toLowerCase().includes(field.toLowerCase())
-        )) {
+        if (
+          sensitiveFields.some((field) =>
+            key.toLowerCase().includes(field.toLowerCase()),
+          )
+        ) {
           result[key] = '[REDACTED]';
         } else if (typeof value === 'object') {
           result[key] = sanitizeObject(value);
@@ -178,7 +186,7 @@ export class AuditLogInterceptor implements NestInterceptor {
           result[key] = value;
         }
       }
-      
+
       return result;
     };
 
@@ -201,7 +209,7 @@ export class AuditLogInterceptor implements NestInterceptor {
       // Log to console for development
       this.logger.log(
         `AUDIT: ${auditData.userEmail} ${auditData.action} ${auditData.resource}` +
-        `${auditData.resourceId ? ` (ID: ${auditData.resourceId})` : ''} - ${auditData.status} (${auditData.duration}ms)`
+          `${auditData.resourceId ? ` (ID: ${auditData.resourceId})` : ''} - ${auditData.status} (${auditData.duration}ms)`,
       );
 
       // Enhanced logging for production
@@ -226,11 +234,10 @@ export class AuditLogInterceptor implements NestInterceptor {
           errorMessage: auditData.errorMessage,
         },
         details: auditData.details,
-      };      // Write to audit log
+      }; // Write to audit log
       if (process.env.NODE_ENV === 'production') {
         console.log('AUDIT_LOG:', JSON.stringify(logEntry));
       }
-
     } catch (error) {
       this.logger.error('Failed to create audit log:', error);
     }

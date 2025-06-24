@@ -177,7 +177,8 @@ export class RoleService {
         },
       },
     });
-  }  async create(createRoleDto: CreateRoleDto): Promise<Role> {
+  }
+  async create(createRoleDto: CreateRoleDto): Promise<Role> {
     const { permissionIds, ...roleData } = createRoleDto;
 
     // Check if role name already exists

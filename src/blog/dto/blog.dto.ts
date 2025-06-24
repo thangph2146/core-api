@@ -1,4 +1,12 @@
-import { IsString, IsOptional, IsNumber, IsBoolean, IsDateString, IsArray, IsJSON } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+  IsDateString,
+  IsArray,
+  IsJSON,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class CreateBlogDto {

@@ -25,7 +25,7 @@ export class EnhancedAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const startTime = Date.now();
-    
+
     try {
       // Get token from Authorization header or cookies
       const token = this.extractToken(request);
@@ -36,10 +36,10 @@ export class EnhancedAuthGuard implements CanActivate {
 
       // Verify JWT token
       const payload = this.jwtService.verifyAccessToken(token);
-      
+
       // Get full user data with role and permissions
       const user = await this.prisma.user.findUnique({
-        where: { 
+        where: {
           id: payload.userId,
           deletedAt: null,
         },
@@ -62,7 +62,9 @@ export class EnhancedAuthGuard implements CanActivate {
 
       // Verify session if sessionId exists
       if (request.cookies?.sessionId) {
-        const session = await this.sessionService.getSession(request.cookies.sessionId);
+        const session = await this.sessionService.getSession(
+          request.cookies.sessionId,
+        );
         if (!session || session.userId !== payload.userId) {
           this.logger.warn(`Invalid session for user: ${payload.userId}`);
           throw new UnauthorizedException('Phiên đăng nhập không hợp lệ');
@@ -70,36 +72,51 @@ export class EnhancedAuthGuard implements CanActivate {
       }
 
       // Attach user with permissions to request
-      const userPermissions = user.role?.permissions?.map(p => p.name) || [];
+      const userPermissions = user.role?.permissions?.map((p) => p.name) || [];
       request.user = {
         ...user,
         permissions: userPermissions,
       };
 
       // Log user access
-      this.logger.log(`User access: ${user.email} (${user.role?.name || 'No role'}) - ${userPermissions.length} permissions`);
+      this.logger.log(
+        `User access: ${user.email} (${user.role?.name || 'No role'}) - ${userPermissions.length} permissions`,
+      );
 
       // Check permissions
-      const hasAccess = await this.checkPermissions(context, userPermissions, user);
-      
+      const hasAccess = await this.checkPermissions(
+        context,
+        userPermissions,
+        user,
+      );
+
       if (!hasAccess) {
-        this.logger.warn(`Permission denied for user: ${user.email} on ${request.method} ${request.url}`);
+        this.logger.warn(
+          `Permission denied for user: ${user.email} on ${request.method} ${request.url}`,
+        );
         throw new ForbiddenException('Không có quyền truy cập chức năng này');
       }
 
       // Log successful authorization
       const duration = Date.now() - startTime;
-      this.logger.debug(`Authorization successful for ${user.email} in ${duration}ms`);
-      
+      this.logger.debug(
+        `Authorization successful for ${user.email} in ${duration}ms`,
+      );
+
       return true;
     } catch (error) {
       const duration = Date.now() - startTime;
-      
-      if (error instanceof ForbiddenException || error instanceof UnauthorizedException) {
-        this.logger.warn(`Authorization failed in ${duration}ms: ${error.message}`);
+
+      if (
+        error instanceof ForbiddenException ||
+        error instanceof UnauthorizedException
+      ) {
+        this.logger.warn(
+          `Authorization failed in ${duration}ms: ${error.message}`,
+        );
         throw error;
       }
-      
+
       this.logger.error(`Authentication error in ${duration}ms:`, error);
       throw new UnauthorizedException('Token không hợp lệ hoặc đã hết hạn');
     }
@@ -107,22 +124,22 @@ export class EnhancedAuthGuard implements CanActivate {
 
   private extractToken(request: any): string | undefined {
     const authHeader = request.headers.authorization;
-    
+
     if (authHeader && authHeader.startsWith('Bearer ')) {
       return authHeader.substring(7);
     }
-    
+
     if (request.cookies?.accessToken) {
       return request.cookies.accessToken;
     }
-    
+
     return undefined;
   }
 
   private async checkPermissions(
     context: ExecutionContext,
     userPermissions: string[],
-    user: any
+    user: any,
   ): Promise<boolean> {
     // Super admin bypass
     if (userPermissions.includes('admin:full_access')) {
@@ -131,10 +148,10 @@ export class EnhancedAuthGuard implements CanActivate {
     }
 
     // Check required permissions
-    const requiredPermissions = this.reflector.getAllAndOverride<string[]>('permissions', [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const requiredPermissions = this.reflector.getAllAndOverride<string[]>(
+      'permissions',
+      [context.getHandler(), context.getClass()],
+    );
 
     // If no permissions required, allow access
     if (!requiredPermissions || requiredPermissions.length === 0) {
@@ -142,26 +159,28 @@ export class EnhancedAuthGuard implements CanActivate {
     }
 
     // Check if user has all required permissions
-    const hasAllPermissions = requiredPermissions.every(permission =>
-      userPermissions.includes(permission)
+    const hasAllPermissions = requiredPermissions.every((permission) =>
+      userPermissions.includes(permission),
     );
 
     if (hasAllPermissions) {
-      this.logger.debug(`Permission check passed for: ${user.email} - Required: [${requiredPermissions.join(', ')}]`);
+      this.logger.debug(
+        `Permission check passed for: ${user.email} - Required: [${requiredPermissions.join(', ')}]`,
+      );
       return true;
     }
 
     // Check "any permission" requirement
-    const anyPermissions = this.reflector.getAllAndOverride<string[]>('anyPermissions', [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const anyPermissions = this.reflector.getAllAndOverride<string[]>(
+      'anyPermissions',
+      [context.getHandler(), context.getClass()],
+    );
 
     if (anyPermissions && anyPermissions.length > 0) {
-      const hasAnyPermission = anyPermissions.some(permission =>
-        userPermissions.includes(permission)
+      const hasAnyPermission = anyPermissions.some((permission) =>
+        userPermissions.includes(permission),
       );
-      
+
       if (hasAnyPermission) {
         this.logger.debug(`Any permission check passed for: ${user.email}`);
         return true;
@@ -169,18 +188,17 @@ export class EnhancedAuthGuard implements CanActivate {
     }
 
     // Check resource ownership
-    const ownership = this.reflector.getAllAndOverride<{ resourceType: string }>('ownership', [
-      context.getHandler(),
-      context.getClass(),
-    ]);
+    const ownership = this.reflector.getAllAndOverride<{
+      resourceType: string;
+    }>('ownership', [context.getHandler(), context.getClass()]);
 
     if (ownership) {
       const hasOwnership = await this.checkResourceOwnership(
         context,
         user.id,
-        ownership.resourceType
+        ownership.resourceType,
       );
-      
+
       if (hasOwnership) {
         this.logger.debug(`Resource ownership check passed for: ${user.email}`);
         return true;
@@ -188,16 +206,16 @@ export class EnhancedAuthGuard implements CanActivate {
     }
 
     this.logger.warn(
-      `Permission denied for ${user.email}: Required [${requiredPermissions.join(', ')}], User has [${userPermissions.join(', ')}]`
+      `Permission denied for ${user.email}: Required [${requiredPermissions.join(', ')}], User has [${userPermissions.join(', ')}]`,
     );
-    
+
     return false;
   }
 
   private async checkResourceOwnership(
     context: ExecutionContext,
     userId: number,
-    resourceType: string
+    resourceType: string,
   ): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
     const resourceId = request.params.id;
@@ -233,7 +251,9 @@ export class EnhancedAuthGuard implements CanActivate {
           return parseInt(resourceId) === userId;
 
         default:
-          this.logger.warn(`Unknown resource type for ownership check: ${resourceType}`);
+          this.logger.warn(
+            `Unknown resource type for ownership check: ${resourceType}`,
+          );
           return false;
       }
     } catch (error) {
