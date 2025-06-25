@@ -111,36 +111,20 @@ export class UserQueryDto {
   sortOrder?: 'asc' | 'desc' = 'desc';
   
   @IsOptional()
-  @IsBoolean()
   @Transform(({ value }) => {
-    if (value === undefined || value === null || value === '') {
-      return false;
-    }
-    if (typeof value === 'boolean') {
-      return value;
-    }
-    if (typeof value === 'string') {
-      return value.toLowerCase() === 'true';
-    }
-    return false;
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return undefined;
   })
-  includeDeleted?: boolean = false;
+  includeDeleted?: boolean;
 
   @IsOptional()
-  @IsBoolean()
   @Transform(({ value }) => {
-    if (value === undefined || value === null || value === '') {
-      return false;
-    }
-    if (typeof value === 'boolean') {
-      return value;
-    }
-    if (typeof value === 'string') {
-      return value.toLowerCase() === 'true';
-    }
-    return false;
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return undefined;
   })
-  deleted?: boolean = false;
+  deleted?: boolean;
 }
 
 export class UserResponseDto {

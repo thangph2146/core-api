@@ -37,6 +37,8 @@ import { SanitizationPipe } from '../common/pipes/sanitization.pipe'
 export class UserController {
 	constructor(private readonly userService: UserService) {}
 
+
+
 	@Post()
 	@HttpCode(HttpStatus.CREATED)
 	@CrudPermissions.Users.Create()
@@ -132,4 +134,6 @@ export class UserController {
 	async bulkPermanentDelete(@Body() body: BulkUserOperationDto) {
 		return this.userService.bulkPermanentDelete(body.userIds)
 	}
+
+
 }
