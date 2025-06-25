@@ -17,6 +17,8 @@ import {
 	UpdateUserDto,
 	UserQueryDto,
 	BulkUserOperationDto,
+	BulkUserRestoreDto,
+	SimpleBulkRestoreDto,
 } from './dto/user.dto'
 import { CrudPermissions } from '../common/decorators/permissions.decorator'
 
@@ -42,6 +44,8 @@ export class UserController {
 	async getUserStats(@Query('deleted') deleted: string) {
 		return this.userService.getUserStats(deleted === 'true')
 	}
+
+
 
 	@Get('email/:email')
 	@CrudPermissions.Users.Read()
@@ -86,18 +90,18 @@ export class UserController {
 
 	// ====== BULK OPERATIONS ======
 
+	@Post('bulk/restore-users')
+	@HttpCode(HttpStatus.OK)
+	@CrudPermissions.Users.FullAccess()
+	async bulkRestore(@Body() body: BulkUserOperationDto) {
+		return this.userService.bulkRestore(body.userIds)
+	}
+
 	@Post('bulk/delete')
 	@HttpCode(HttpStatus.OK)
 	@CrudPermissions.Users.FullAccess()
 	async bulkDelete(@Body() body: BulkUserOperationDto) {
 		return this.userService.bulkDelete(body.userIds)
-	}
-
-	@Post('bulk/restore')
-	@HttpCode(HttpStatus.OK)
-	@CrudPermissions.Users.FullAccess()
-	async bulkRestore(@Body() body: BulkUserOperationDto) {
-		return this.userService.bulkRestore(body.userIds)
 	}
 
 	@Post('bulk/permanent-delete')

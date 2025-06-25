@@ -55,13 +55,13 @@ export class PermissionQueryDto {
 	@IsOptional()
 	@IsInt()
 	@Min(1)
-	@Transform(({ value }) => parseInt(value, 10))
+	@Transform(({ value }) => value !== undefined && value !== null && value !== '' ? parseInt(value, 10) : undefined)
 	page?: number = 1;
 
 	@IsOptional()
 	@IsInt()
 	@Min(1)
-	@Transform(({ value }) => parseInt(value, 10))
+	@Transform(({ value }) => value !== undefined && value !== null && value !== '' ? parseInt(value, 10) : undefined)
 	limit?: number = 10;
 
 	@IsOptional()

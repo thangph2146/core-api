@@ -31,34 +31,30 @@ export class AuditLogInterceptor implements NestInterceptor {
   constructor(private readonly prisma: PrismaService) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-    const startTime = Date.now();
     const request = context.switchToHttp().getRequest();
+    const { method, url, body, params, user } = request;
+    const startTime = Date.now();
 
-    // Extract audit information
-    const { method, url, user, body, params, query } = request;
-    const userAgent = request.headers['user-agent'];
-    const ipAddress = this.getClientIp(request);
-
-    // Determine if this action should be audited
-    if (!this.shouldAudit(method, url) || !user) {
+    // Skip non-sensitive operations
+    if (!this.shouldAudit(method, url)) {
       return next.handle();
     }
 
+    // Prepare audit data
     const auditData: Partial<AuditLogData> = {
-      userId: user.id,
-      userEmail: user.email,
+      userId: user?.id,
+      userEmail: user?.email || 'unknown',
       action: this.extractAction(method, url),
       resource: this.extractResource(url),
-      resourceId: params?.id || body?.id,
-      details: this.sanitizeDetails({ body, params, query }),
-      ipAddress,
-      userAgent,
+      resourceId: this.extractResourceId(url, params, body),
+      details: this.sanitizeDetails({ body, params }),
+      ipAddress: this.getClientIp(request),
+      userAgent: request.headers['user-agent'],
       timestamp: new Date(),
     };
 
     return next.handle().pipe(
-      tap((data) => {
-        // Success case
+      tap(() => {
         const duration = Date.now() - startTime;
         this.logAudit({
           ...auditData,
@@ -67,7 +63,6 @@ export class AuditLogInterceptor implements NestInterceptor {
         } as AuditLogData);
       }),
       catchError((error) => {
-        // Error case
         const duration = Date.now() - startTime;
         this.logAudit({
           ...auditData,
@@ -105,6 +100,12 @@ export class AuditLogInterceptor implements NestInterceptor {
   }
 
   private extractAction(method: string, url: string): string {
+    // Handle bulk operations with specific route names
+    if (url.includes('/bulk/restore-users')) return 'bulk_restore_users';
+    if (url.includes('/bulk/restore')) return 'bulk_restore';
+    if (url.includes('/bulk/delete')) return 'bulk_delete';
+    if (url.includes('/bulk/permanent-delete')) return 'bulk_permanent_delete';
+    
     // Handle specific patterns
     if (url.includes('/restore')) return 'restore';
     if (url.includes('/delete')) return 'delete';
@@ -153,6 +154,14 @@ export class AuditLogInterceptor implements NestInterceptor {
     }
 
     return 'unknown';
+  }
+
+  private extractResourceId(url: string, params: any, body: any): string | undefined {
+    // Skip ID extraction for bulk operations
+    if (url.includes('/bulk')) {
+      return undefined;
+    }
+    return params?.id || body?.id;
   }
 
   private sanitizeDetails(details: any): any {
@@ -206,11 +215,23 @@ export class AuditLogInterceptor implements NestInterceptor {
 
   private async logAudit(auditData: AuditLogData): Promise<void> {
     try {
+      // Create dynamic log message
+      let logMessage = `AUDIT: ${auditData.userEmail} ${auditData.action} ${auditData.resource}`;
+      
+      // Add resource ID or bulk info
+      if (auditData.resourceId) {
+        logMessage += ` (ID: ${auditData.resourceId})`;
+      } else if (auditData.action.startsWith('bulk_') && auditData.details?.body?.userIds) {
+        const count = Array.isArray(auditData.details.body.userIds) 
+          ? auditData.details.body.userIds.length 
+          : 1;
+        logMessage += ` (${count} items)`;
+      }
+      
+      logMessage += ` - ${auditData.status} (${auditData.duration}ms)`;
+      
       // Log to console for development
-      this.logger.log(
-        `AUDIT: ${auditData.userEmail} ${auditData.action} ${auditData.resource}` +
-          `${auditData.resourceId ? ` (ID: ${auditData.resourceId})` : ''} - ${auditData.status} (${auditData.duration}ms)`,
-      );
+      this.logger.log(logMessage);
 
       // Enhanced logging for production
       const logEntry = {
@@ -234,7 +255,9 @@ export class AuditLogInterceptor implements NestInterceptor {
           errorMessage: auditData.errorMessage,
         },
         details: auditData.details,
-      }; // Write to audit log
+      };
+
+      // Write to audit log
       if (process.env.NODE_ENV === 'production') {
         console.log('AUDIT_LOG:', JSON.stringify(logEntry));
       }

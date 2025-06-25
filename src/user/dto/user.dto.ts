@@ -7,7 +7,7 @@ import {
   IsDateString,
   IsArray,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class CreateUserDto {
   @IsEmail()
@@ -83,12 +83,12 @@ export class UpdateUserDto {
 export class UserQueryDto {
   @IsOptional()
   @IsInt()
-  @Transform(({ value }) => parseInt(value))
+  @Transform(({ value }) => value !== undefined && value !== null && value !== '' ? parseInt(value, 10) : undefined)
   page?: number = 1;
 
   @IsOptional()
   @IsInt()
-  @Transform(({ value }) => parseInt(value))
+  @Transform(({ value }) => value !== undefined && value !== null && value !== '' ? parseInt(value, 10) : undefined)
   limit?: number = 10;
 
   @IsOptional()
@@ -97,7 +97,7 @@ export class UserQueryDto {
 
   @IsOptional()
   @IsInt()
-  @Transform(({ value }) => parseInt(value))
+  @Transform(({ value }) => value !== undefined && value !== null && value !== '' ? parseInt(value, 10) : undefined)
   roleId?: number;
 
   @IsOptional()
@@ -107,14 +107,37 @@ export class UserQueryDto {
   @IsOptional()
   @IsString()
   sortOrder?: 'asc' | 'desc' = 'desc';
+  
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => value === 'true')
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') {
+      return false;
+    }
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'string') {
+      return value.toLowerCase() === 'true';
+    }
+    return false;
+  })
   includeDeleted?: boolean = false;
 
   @IsOptional()
   @IsBoolean()
-  @Transform(({ value }) => value === 'true')
+  @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') {
+      return false;
+    }
+    if (typeof value === 'boolean') {
+      return value;
+    }
+    if (typeof value === 'string') {
+      return value.toLowerCase() === 'true';
+    }
+    return false;
+  })
   deleted?: boolean = false;
 }
 
@@ -162,5 +185,47 @@ export class UserListResponseDto {
 export class BulkUserOperationDto {
   @IsArray()
   @IsInt({ each: true })
+  @Transform(({ value }) => {
+    if (!Array.isArray(value)) {
+      return [];
+    }
+    
+    const result = value.map((id) => {
+      const num = typeof id === 'string' ? parseInt(id, 10) : Number(id);
+      if (isNaN(num)) {
+        throw new Error(`Invalid ID: ${id}`);
+      }
+      return num;
+    });
+    
+    return result;
+  })
   userIds: number[];
+}
+
+export class BulkUserRestoreDto {
+  @IsArray()
+  @IsInt({ each: true })
+  @Transform(({ value }) => {
+    console.log('🔍 BulkUserRestoreDto Transform - Raw value:', value);
+    console.log('🔍 BulkUserRestoreDto Transform - Type:', typeof value);
+    
+    if (Array.isArray(value)) {
+      const result = value.map(id => {
+        const num = typeof id === 'string' ? parseInt(id, 10) : Number(id);
+        console.log(`🔍 Converting ${id} (${typeof id}) -> ${num} (${typeof num})`);
+        return num;
+      });
+      console.log('🔍 Transform result:', result);
+      return result;
+    }
+    
+    console.log('🔍 Not an array, returning as-is');
+    return value;
+  })
+  userIds: number[];
+}
+
+export class SimpleBulkRestoreDto {
+  userIds: any; // No validation at all
 }

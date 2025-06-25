@@ -47,12 +47,19 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
     // Global Pipes
     {
       provide: APP_PIPE,
-      useClass: ValidationPipe,
+      useFactory: () => new ValidationPipe({
+        transform: true,
+        transformOptions: {
+          enableImplicitConversion: true,
+        },
+        whitelist: true,
+        forbidNonWhitelisted: false,
+      }),
     },
-    {
-      provide: APP_PIPE,
-      useClass: SanitizationPipe,
-    },
+    // {
+    //   provide: APP_PIPE,
+    //   useClass: SanitizationPipe,
+    // },
     // Global Interceptors
     {
       provide: APP_INTERCEPTOR,

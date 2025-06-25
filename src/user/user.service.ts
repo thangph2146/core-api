@@ -82,10 +82,22 @@ export class UserService {
 			sortBy = 'createdAt',
 			sortOrder = 'desc',
 			deleted = false,
+			includeDeleted = false,
 		} = query
 
 		const skip = (page - 1) * limit
-		const where: Prisma.UserWhereInput = { deletedAt: deleted ? { not: null } : null }
+		
+		// Fix: Properly handle deleted and includeDeleted logic
+		let where: Prisma.UserWhereInput = {}
+		
+		if (!includeDeleted) {
+			// Default: Only show active users (deletedAt is null)
+			where.deletedAt = null
+		} else if (deleted) {
+			// Show only deleted users (deletedAt is not null)
+			where.deletedAt = { not: null }
+		}
+		// If includeDeleted=true and deleted=false, show all users (no deletedAt filter)
 
 		if (search) {
 			where.OR = [

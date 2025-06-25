@@ -2,11 +2,8 @@ import {
   PipeTransform,
   Injectable,
   ArgumentMetadata,
-  BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { validate } from 'class-validator';
-import { plainToInstance } from 'class-transformer';
 import * as DOMPurify from 'isomorphic-dompurify';
 
 @Injectable()
@@ -14,25 +11,13 @@ export class SanitizationPipe implements PipeTransform<any> {
   private readonly logger = new Logger(SanitizationPipe.name);
 
   async transform(value: any, { metatype }: ArgumentMetadata) {
+    // Skip validation for basic types and let ValidationPipe handle DTO validation
     if (!metatype || !this.toValidate(metatype)) {
       return this.sanitizeInput(value);
     }
 
-    // Sanitize string inputs
-    const sanitizedValue = this.sanitizeInput(value);
-
-    // Transform and validate
-    const object = plainToInstance(metatype, sanitizedValue);
-    const errors = await validate(object);
-
-    if (errors.length > 0) {
-      const messages = errors
-        .map((error) => Object.values(error.constraints || {}).join(', '))
-        .join('; ');
-      throw new BadRequestException(`Dữ liệu không hợp lệ: ${messages}`);
-    }
-
-    return object;
+    // Only sanitize, don't validate (let ValidationPipe handle validation)
+    return this.sanitizeInput(value);
   }
 
   private toValidate(metatype: Function): boolean {
@@ -97,7 +82,6 @@ export class SanitizationPipe implements PipeTransform<any> {
   }
 
   private preventSQLInjection(str: string): string {
-    // Remove or escape common SQL injection patterns
     const sqlPatterns = [
       /(\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b)/gi,
       /(\b(or|and)\s+\d+\s*=\s*\d+)/gi,
@@ -117,7 +101,6 @@ export class SanitizationPipe implements PipeTransform<any> {
   }
 
   private preventScriptInjection(str: string): string {
-    // Remove script-related content
     const scriptPatterns = [
       /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
       /javascript:/gi,
@@ -137,7 +120,6 @@ export class SanitizationPipe implements PipeTransform<any> {
   }
 
   private preventPathTraversal(str: string): string {
-    // Remove path traversal patterns
     const pathPatterns = [/\.\.\//g, /\.\.\\+/g, /%2e%2e%2f/gi, /%2e%2e%5c/gi];
 
     let cleaned = str;
@@ -150,6 +132,7 @@ export class SanitizationPipe implements PipeTransform<any> {
 
     return cleaned;
   }
+
   private isDangerousKey(key: string): boolean {
     const dangerousKeys = [
       '__proto__',
