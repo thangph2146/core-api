@@ -6,6 +6,8 @@ import {
   IsBoolean,
   IsDateString,
   IsArray,
+  ArrayMinSize,
+  Min
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
@@ -184,44 +186,36 @@ export class UserListResponseDto {
 
 export class BulkUserOperationDto {
   @IsArray()
-  @IsInt({ each: true })
+  @ArrayMinSize(1, { message: 'userIds array cannot be empty' })
+  @IsInt({ each: true, message: 'Each user ID must be a positive integer' })
+  @Min(1, { each: true, message: 'Each user ID must be a positive integer' })
   @Transform(({ value }) => {
     if (!Array.isArray(value)) {
-      return [];
+      return value; // Let class-validator handle the error
     }
     
-    const result = value.map((id) => {
+    return value.map((id) => {
       const num = typeof id === 'string' ? parseInt(id, 10) : Number(id);
-      if (isNaN(num)) {
-        throw new Error(`Invalid ID: ${id}`);
-      }
-      return num;
+      return isNaN(num) ? id : num; // Let class-validator handle validation
     });
-    
-    return result;
   })
   userIds: number[];
 }
 
 export class BulkUserRestoreDto {
   @IsArray()
-  @IsInt({ each: true })
+  @ArrayMinSize(1, { message: 'userIds array cannot be empty' })
+  @IsInt({ each: true, message: 'Each user ID must be a positive integer' })
+  @Min(1, { each: true, message: 'Each user ID must be a positive integer' })
   @Transform(({ value }) => {
-    console.log('🔍 BulkUserRestoreDto Transform - Raw value:', value);
-    console.log('🔍 BulkUserRestoreDto Transform - Type:', typeof value);
-    
-    if (Array.isArray(value)) {
-      const result = value.map(id => {
-        const num = typeof id === 'string' ? parseInt(id, 10) : Number(id);
-        console.log(`🔍 Converting ${id} (${typeof id}) -> ${num} (${typeof num})`);
-        return num;
-      });
-      console.log('🔍 Transform result:', result);
-      return result;
+    if (!Array.isArray(value)) {
+      return value; // Let class-validator handle the error
     }
     
-    console.log('🔍 Not an array, returning as-is');
-    return value;
+    return value.map(id => {
+      const num = typeof id === 'string' ? parseInt(id, 10) : Number(id);
+      return isNaN(num) ? id : num; // Let class-validator handle validation
+    });
   })
   userIds: number[];
 }

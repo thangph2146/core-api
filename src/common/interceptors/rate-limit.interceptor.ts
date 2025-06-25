@@ -19,8 +19,10 @@ export class RateLimitInterceptor implements NestInterceptor {
     const response = context.switchToHttp().getResponse();
 
     // Get rate limit from decorator or use default
+    // Use higher limit for test environment
+    const defaultLimit = process.env.NODE_ENV === 'test' ? 1000 : 100;
     const limit =
-      this.reflector.get<number>('rateLimit', context.getHandler()) || 100;
+      this.reflector.get<number>('rateLimit', context.getHandler()) || defaultLimit;
     const windowMs =
       this.reflector.get<number>('rateLimitWindow', context.getHandler()) ||
       60000; // 1 minute

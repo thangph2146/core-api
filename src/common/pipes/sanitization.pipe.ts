@@ -46,15 +46,20 @@ export class SanitizationPipe implements PipeTransform<any> {
   }
 
   private sanitizeString(str: string): string {
-    // Basic XSS protection
-    let sanitized = DOMPurify.sanitize(str, {
+    if (!str || typeof str !== 'string') return str;
+
+    // First, remove script tags and dangerous HTML
+    let sanitized = this.preventScriptInjection(str);
+    
+    // Then use DOMPurify for additional HTML sanitization
+    sanitized = DOMPurify.sanitize(sanitized, {
       ALLOWED_TAGS: [], // Remove all HTML tags
       ALLOWED_ATTR: [], // Remove all attributes
+      KEEP_CONTENT: true, // Keep text content
     });
 
     // Additional protections
     sanitized = this.preventSQLInjection(sanitized);
-    sanitized = this.preventScriptInjection(sanitized);
     sanitized = this.preventPathTraversal(sanitized);
 
     return sanitized.trim();
@@ -103,15 +108,23 @@ export class SanitizationPipe implements PipeTransform<any> {
   private preventScriptInjection(str: string): string {
     const scriptPatterns = [
       /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+      /<script[^>]*>.*?<\/script>/gi,
+      /<script[^>]*>/gi,
+      /<\/script>/gi,
       /javascript:/gi,
       /on\w+\s*=/gi,
       /<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi,
+      /<object[^>]*>.*?<\/object>/gi,
+      /<embed[^>]*>/gi,
+      /<applet[^>]*>.*?<\/applet>/gi,
+      /<meta[^>]*>/gi,
+      /<link[^>]*>/gi,
     ];
 
     let cleaned = str;
     scriptPatterns.forEach((pattern) => {
       if (pattern.test(cleaned)) {
-        this.logger.warn(`Potential script injection detected`);
+        this.logger.warn(`Potential script injection detected: ${pattern}`);
         cleaned = cleaned.replace(pattern, '');
       }
     });

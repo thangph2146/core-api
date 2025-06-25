@@ -2,6 +2,7 @@ import {
 	Injectable,
 	NotFoundException,
 	ConflictException,
+	BadRequestException,
 } from '@nestjs/common'
 import { PrismaService } from '../prisma/prisma.service'
 import {
@@ -168,7 +169,13 @@ export class UserService {
 		email: string,
 		includeDeleted = false,
 	): Promise<UserResponseDto | null> {
-		const user = await this.prisma.user.findUnique({ where: { email } })
+		const user = await this.prisma.user.findUnique({
+			where: { email },
+			include: {
+				role: true,
+				profile: true,
+			},
+		})
 
 		if (!user || (!includeDeleted && user.deletedAt)) {
 			return null
@@ -179,6 +186,16 @@ export class UserService {
 
 	async create(createUserDto: CreateUserDto): Promise<UserResponseDto> {
 		const { password, profile, ...userData } = createUserDto
+
+		// Validate roleId if provided
+		if (userData.roleId) {
+			const roleExists = await this.prisma.role.findUnique({
+				where: { id: userData.roleId }
+			})
+			if (!roleExists) {
+				throw new BadRequestException(`Role with ID ${userData.roleId} does not exist.`)
+			}
+		}
 
 		const hashedPassword = await bcrypt.hash(password, 10)
 
@@ -206,6 +223,10 @@ export class UserService {
 				error.code === 'P2002'
 			) {
 				throw new ConflictException('User with this email already exists.')
+			}
+			if (error instanceof Prisma.PrismaClientKnownRequestError &&
+				error.code === 'P2003') {
+				throw new BadRequestException('Invalid foreign key constraint.')
 			}
 			throw error
 		}
@@ -288,28 +309,162 @@ export class UserService {
 	// ====== BULK OPERATIONS ======
 
 	async bulkDelete(userIds: number[]): Promise<{ deletedCount: number }> {
+		if (!userIds || userIds.length === 0) {
+			throw new BadRequestException('userIds array cannot be empty')
+		}
+
+		// Validate all userIds are positive integers
+		for (const id of userIds) {
+			if (!Number.isInteger(id) || id <= 0) {
+				throw new BadRequestException(`Invalid user ID: ${id}. Must be a positive integer.`)
+			}
+		}
+
 		const result = await this.prisma.user.updateMany({
-			where: { id: { in: userIds }, deletedAt: null },
-			data: { deletedAt: new Date() },
+			where: {
+				id: { in: userIds },
+				deletedAt: null,
+			},
+			data: {
+				deletedAt: new Date(),
+			},
 		})
+
 		return { deletedCount: result.count }
 	}
 
 	async bulkRestore(userIds: number[]): Promise<{ restoredCount: number }> {
+		if (!userIds || userIds.length === 0) {
+			throw new BadRequestException('userIds array cannot be empty')
+		}
+
+		// Validate all userIds are positive integers
+		for (const id of userIds) {
+			if (!Number.isInteger(id) || id <= 0) {
+				throw new BadRequestException(`Invalid user ID: ${id}. Must be a positive integer.`)
+			}
+		}
+
 		const result = await this.prisma.user.updateMany({
-			where: { id: { in: userIds }, deletedAt: { not: null } },
-			data: { deletedAt: null },
+			where: {
+				id: { in: userIds },
+				deletedAt: { not: null },
+			},
+			data: {
+				deletedAt: null,
+			},
 		})
+
 		return { restoredCount: result.count }
 	}
 
 	async bulkPermanentDelete(
 		userIds: number[],
 	): Promise<{ deletedCount: number }> {
-		const result = await this.prisma.user.deleteMany({
-			where: { id: { in: userIds } },
-		})
-		return { deletedCount: result.count }
+		console.log('🔥 BULK PERMANENT DELETE START');
+		console.log('🔥 Received userIds:', userIds);
+		console.log('🔥 UserIds type:', typeof userIds);
+		console.log('🔥 UserIds length:', userIds?.length);
+		
+		if (!userIds || userIds.length === 0) {
+			console.log('❌ Empty userIds array');
+			throw new BadRequestException('userIds array cannot be empty')
+		}
+
+		// Validate all userIds are positive integers
+		for (const id of userIds) {
+			console.log(`🔍 Validating ID: ${id} (type: ${typeof id})`);
+			if (!Number.isInteger(id) || id <= 0) {
+				console.log(`❌ Invalid user ID: ${id}`);
+				throw new BadRequestException(`Invalid user ID: ${id}. Must be a positive integer.`)
+			}
+		}
+
+		console.log('✅ All userIds validated');
+		
+		try {
+			// Check how many users exist before deletion
+			const existingUsers = await this.prisma.user.findMany({
+				where: { id: { in: userIds } },
+				select: { id: true, email: true, deletedAt: true }
+			});
+			console.log('📊 Users found before deletion:', existingUsers);
+			console.log('📊 Users count before deletion:', existingUsers.length);
+			
+			if (existingUsers.length === 0) {
+				console.log('⚠️ No users found with provided IDs');
+				return { deletedCount: 0 };
+			}
+			
+			// Use transaction to ensure atomic deletion
+			const result = await this.prisma.$transaction(async (tx) => {
+				console.log('🔄 Starting transaction for user deletion');
+				
+				// Delete related data manually if needed (optional, as most have CASCADE)
+				// This is for safety in case some constraints don't cascade properly
+				
+				// Delete user profiles (should cascade automatically, but being explicit)
+				const profilesDeleted = await tx.userProfile.deleteMany({
+					where: { userId: { in: userIds } }
+				});
+				console.log('🗑️ Deleted user profiles:', profilesDeleted.count);
+				
+				// Delete user sessions (should cascade automatically)
+				const sessionsDeleted = await tx.userSession.deleteMany({
+					where: { userId: { in: userIds } }
+				});
+				console.log('🗑️ Deleted user sessions:', sessionsDeleted.count);
+				
+				// Delete accounts (should cascade automatically)
+				const accountsDeleted = await tx.account.deleteMany({
+					where: { userId: { in: userIds } }
+				});
+				console.log('🗑️ Deleted accounts:', accountsDeleted.count);
+				
+				// Delete NextAuth sessions (should cascade automatically)
+				const nextAuthSessionsDeleted = await tx.session.deleteMany({
+					where: { userId: { in: userIds } }
+				});
+				console.log('🗑️ Deleted NextAuth sessions:', nextAuthSessionsDeleted.count);
+				
+				// Now delete users
+				const usersDeleted = await tx.user.deleteMany({
+					where: { id: { in: userIds } },
+				});
+				console.log('🗑️ Deleted users:', usersDeleted.count);
+				
+				return usersDeleted;
+			});
+			
+			console.log('🗑️ Transaction completed, result:', result);
+			console.log('🗑️ Deleted count:', result.count);
+			
+			// Verify deletion by checking if users still exist
+			const remainingUsers = await this.prisma.user.findMany({
+				where: { id: { in: userIds } },
+				select: { id: true, email: true }
+			});
+			console.log('🔍 Users remaining after deletion:', remainingUsers);
+			console.log('🔍 Remaining count:', remainingUsers.length);
+			
+			if (remainingUsers.length > 0) {
+				console.log('⚠️ WARNING: Some users were not deleted!');
+				console.log('⚠️ Remaining user IDs:', remainingUsers.map(u => u.id));
+			} else {
+				console.log('✅ All users successfully deleted');
+			}
+			
+			console.log('✅ BULK PERMANENT DELETE COMPLETE');
+			return { deletedCount: result.count };
+		} catch (error) {
+			console.error('💥 BULK PERMANENT DELETE ERROR:', error);
+			console.error('💥 Error details:', {
+				message: error.message,
+				code: error.code,
+				meta: error.meta
+			});
+			throw error;
+		}
 	}
 
 	async getUserStats(deleted: boolean = false) {

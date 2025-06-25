@@ -10,6 +10,10 @@ import {
 	ParseIntPipe,
 	HttpStatus,
 	HttpCode,
+	Put,
+	UsePipes,
+	ValidationPipe,
+	NotFoundException,
 } from '@nestjs/common'
 import { UserService } from './user.service'
 import {
@@ -17,12 +21,19 @@ import {
 	UpdateUserDto,
 	UserQueryDto,
 	BulkUserOperationDto,
-	BulkUserRestoreDto,
-	SimpleBulkRestoreDto,
 } from './dto/user.dto'
 import { CrudPermissions } from '../common/decorators/permissions.decorator'
+import { SanitizationPipe } from '../common/pipes/sanitization.pipe'
 
 @Controller('api/users')
+@UsePipes(
+	new SanitizationPipe(),
+	new ValidationPipe({
+		transform: true,
+		whitelist: true,
+		forbidNonWhitelisted: true,
+	})
+)
 export class UserController {
 	constructor(private readonly userService: UserService) {}
 
@@ -45,12 +56,14 @@ export class UserController {
 		return this.userService.getUserStats(deleted === 'true')
 	}
 
-
-
 	@Get('email/:email')
 	@CrudPermissions.Users.Read()
 	async findByEmail(@Param('email') email: string) {
-		return this.userService.findByEmail(email)
+		const user = await this.userService.findByEmail(email)
+		if (!user) {
+			throw new NotFoundException('User not found')
+		}
+		return user
 	}
 
 	@Get(':id')
@@ -62,6 +75,15 @@ export class UserController {
 	@Patch(':id')
 	@CrudPermissions.Users.Update()
 	async update(
+		@Param('id', ParseIntPipe) id: number,
+		@Body() updateUserDto: UpdateUserDto,
+	) {
+		return this.userService.update(id, updateUserDto)
+	}
+
+	@Put(':id')
+	@CrudPermissions.Users.Update()
+	async putUpdate(
 		@Param('id', ParseIntPipe) id: number,
 		@Body() updateUserDto: UpdateUserDto,
 	) {
