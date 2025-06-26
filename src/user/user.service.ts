@@ -82,23 +82,67 @@ export class UserService {
 			roleId,
 			sortBy = 'createdAt',
 			sortOrder = 'desc',
-			deleted = false,
-			includeDeleted = false,
 		} = query
 
 		const skip = (page - 1) * limit
 		
-		// Fix: Properly handle deleted and includeDeleted logic
-		let where: Prisma.UserWhereInput = {}
-		
-		if (!includeDeleted) {
-			// Default: Only show active users (deletedAt is null)
-			where.deletedAt = null
-		} else if (deleted) {
-			// Show only deleted users (deletedAt is not null)
-			where.deletedAt = { not: null }
+		// Only show active users (deletedAt is null)
+		let where: Prisma.UserWhereInput = {
+			deletedAt: null
 		}
-		// If includeDeleted=true and deleted=false, show all users (no deletedAt filter)
+
+		if (search) {
+			where.OR = [
+				{ name: { contains: search, mode: 'insensitive' } },
+				{ email: { contains: search, mode: 'insensitive' } },
+			]
+		}
+		if (roleId) {
+			where.roleId = roleId
+		}
+
+		const orderBy: Prisma.UserOrderByWithRelationInput = { [sortBy]: sortOrder }
+		const include: Prisma.UserInclude = {
+			role: { select: { id: true, name: true, description: true } },
+			_count: { select: { blogs: true, medias: true, recruitments: true } },
+		}
+
+		const [users, total] = await this.prisma.$transaction([
+			this.prisma.user.findMany({ where, skip, take: limit, orderBy, include }),
+			this.prisma.user.count({ where }),
+		])
+
+		const totalPages = Math.ceil(total / limit)
+
+		return {
+			data: users.map(this.formatUserListResponse),
+			meta: {
+				total,
+				page,
+				limit,
+				totalPages,
+				hasNext: page < totalPages,
+				hasPrevious: page > 1,
+			},
+		}
+	}
+
+	async findDeleted(query: UserQueryDto) {
+		const {
+			page = 1,
+			limit = 10,
+			search,
+			roleId,
+			sortBy = 'createdAt',
+			sortOrder = 'desc',
+		} = query
+
+		const skip = (page - 1) * limit
+		
+		// Only show deleted users (deletedAt is not null)
+		let where: Prisma.UserWhereInput = {
+			deletedAt: { not: null }
+		}
 
 		if (search) {
 			where.OR = [

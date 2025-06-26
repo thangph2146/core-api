@@ -110,21 +110,7 @@ export class UserQueryDto {
   @IsString()
   sortOrder?: 'asc' | 'desc' = 'desc';
   
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return undefined;
-  })
-  includeDeleted?: boolean;
 
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return undefined;
-  })
-  deleted?: boolean;
 }
 
 export class UserResponseDto {

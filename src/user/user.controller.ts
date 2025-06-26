@@ -52,6 +52,12 @@ export class UserController {
 		return this.userService.findAll(query)
 	}
 
+	@Get('deleted')
+	@CrudPermissions.Users.Read()
+	async findDeleted(@Query() query: UserQueryDto) {
+		return this.userService.findDeleted(query)
+	}
+
 	@Get('stats')
 	@CrudPermissions.Users.Read()
 	async getUserStats(@Query('deleted') deleted: string) {
