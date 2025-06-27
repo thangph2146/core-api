@@ -15,6 +15,11 @@ export const PERMISSIONS = {
     UPDATE: 'users:update',
     DELETE: 'users:delete',
     RESTORE: 'users:restore',
+    VIEW_DELETED: 'users:view_deleted',
+    PERMANENT_DELETE: 'users:permanent_delete',
+    BULK_DELETE: 'users:bulk_delete',
+    BULK_RESTORE: 'users:bulk_restore',
+    BULK_PERMANENT_DELETE: 'users:bulk_permanent_delete',
     FULL_ACCESS: 'users:full_access', // For managing all users
   },
 

@@ -1,4 +1,5 @@
 import * as request from 'supertest';
+import { requestCounts } from './interceptors/rate-limit.interceptor'; // Import a counter
 
 describe('Common Modules - Comprehensive Test Suite', () => {
   let accessToken: string;
@@ -19,6 +20,11 @@ describe('Common Modules - Comprehensive Test Suite', () => {
 
     accessToken = loginResponse.body.data.accessToken;
     console.log('✅ Login successful for common modules testing!');
+  });
+
+  beforeEach(() => {
+    // Reset the rate limiter before each test to prevent test interference
+    requestCounts.clear();
   });
 
   describe('🔐 Authentication Module Tests', () => {
@@ -627,6 +633,69 @@ describe('Common Modules - Comprehensive Test Suite', () => {
       console.log('ℹ️ Rate Limit Interceptor: Tested but not fully implemented');
       console.log('================================');
       console.log('📊 Overall Common Modules Status: OPERATIONAL ✅');
+    });
+  });
+
+  describe('Separate APIs for Users and Deleted Users Tests', () => {
+    const uniqueUserEmail = `lifecycle.test.${Date.now()}@example.com`;
+    let newUserId: number;
+
+    it('should create a new user successfully to test lifecycle', async () => {
+      const response = await request(baseUrl)
+        .post('/api/users')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          email: uniqueUserEmail,
+          name: 'Lifecycle Test',
+          password: 'Password123!',
+          roleId: 47,
+        })
+        .expect(201);
+      
+      newUserId = response.body.id;
+      expect(newUserId).toBeDefined();
+      console.log(`✅ Created user ${newUserId} for lifecycle test.`);
+    });
+
+    it('should verify the new user appears in the active list', async () => {
+      const response = await request(baseUrl)
+        .get('/api/users')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+      
+      const userExists = response.body.data.some(user => user.id === newUserId);
+      expect(userExists).toBe(true);
+      console.log(`✅ User ${newUserId} found in active list.`);
+    });
+
+    it('should soft-delete the user', async () => {
+      await request(baseUrl)
+        .delete(`/api/users/${newUserId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(204);
+      console.log(`✅ Soft-deleted user ${newUserId}.`);
+    });
+
+    it('should verify the user now appears in the deleted list', async () => {
+      const response = await request(baseUrl)
+        .get('/api/users/deleted')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      const userExists = response.body.data.some(user => user.id === newUserId);
+      expect(userExists).toBe(true);
+      console.log(`✅ User ${newUserId} found in deleted list.`);
+    });
+
+    it('should verify the user no longer appears in the active list', async () => {
+      const response = await request(baseUrl)
+        .get('/api/users')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      const userExists = response.body.data.some(user => user.id === newUserId);
+      expect(userExists).toBe(false);
+      console.log(`✅ User ${newUserId} is not in active list anymore.`);
     });
   });
 }); 

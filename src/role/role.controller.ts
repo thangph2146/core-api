@@ -25,7 +25,7 @@ import {
 	Public,
 } from '../common/decorators/permissions.decorator'
 
-@Controller('api/roles')
+@Controller('roles')
 @UseGuards(AuthGuard)
 export class RoleController {
 	constructor(private readonly roleService: RoleService) {}

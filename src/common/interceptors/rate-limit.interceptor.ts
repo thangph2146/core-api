@@ -8,7 +8,7 @@ import { Observable } from 'rxjs';
 import { Reflector } from '@nestjs/core';
 
 // Simple in-memory rate limiter (production should use Redis)
-const requestCounts = new Map<string, { count: number; resetTime: number }>();
+export const requestCounts = new Map<string, { count: number; resetTime: number }>();
 
 @Injectable()
 export class RateLimitInterceptor implements NestInterceptor {

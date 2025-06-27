@@ -35,6 +35,11 @@ export class CrudPermissions {
 		Update: () => RequirePermissions(PERMISSIONS.USERS.UPDATE),
 		Delete: () => RequirePermissions(PERMISSIONS.USERS.DELETE),
 		Restore: () => RequirePermissions(PERMISSIONS.USERS.RESTORE),
+		ViewDeleted: () => RequirePermissions(PERMISSIONS.USERS.VIEW_DELETED),
+		PermanentDelete: () => RequirePermissions(PERMISSIONS.USERS.PERMANENT_DELETE),
+		BulkDelete: () => RequirePermissions(PERMISSIONS.USERS.BULK_DELETE),
+		BulkRestore: () => RequirePermissions(PERMISSIONS.USERS.BULK_RESTORE),
+		BulkPermanentDelete: () => RequirePermissions(PERMISSIONS.USERS.BULK_PERMANENT_DELETE),
 		FullAccess: () => RequirePermissions(PERMISSIONS.USERS.FULL_ACCESS),
 	};
 
@@ -103,5 +108,5 @@ export class CrudPermissions {
  * @param resourceType The type of resource (e.g., 'BLOGS', 'MEDIA').
  */
 export const RequireOwnership = (
-	resourceType: 'BLOGS' | 'MEDIA' | 'RECRUITMENT',
+	resourceType: 'BLOGS' | 'MEDIA' | 'RECRUITMENT' | 'USER',
 ) => SetMetadata(OWNERSHIP_KEY, { resourceType });

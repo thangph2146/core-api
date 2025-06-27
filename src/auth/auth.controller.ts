@@ -38,7 +38,7 @@ const getSafeUser = (user: User) => {
   return safeUser;
 };
 
-@Controller('api/auth')
+@Controller('auth')
 @UseGuards(AuthGuard)
 export class AuthController {
   constructor(
