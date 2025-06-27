@@ -394,16 +394,8 @@ export class UserService {
 		if (password.length < 8) {
 			throw new BadRequestException('Mật khẩu phải có ít nhất 8 ký tự')
 		}
-
-		const hasUpperCase = /[A-Z]/.test(password)
-		const hasLowerCase = /[a-z]/.test(password)
-		const hasNumbers = /\d/.test(password)
-		const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password)
-
-		if (!hasUpperCase || !hasLowerCase || !hasNumbers || !hasSpecialChar) {
-			throw new BadRequestException(
-				'Mật khẩu phải chứa ít nhất: 1 chữ hoa, 1 chữ thường, 1 số và 1 ký tự đặc biệt'
-			)
+		if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>])/.test(password)) {
+			throw new BadRequestException('Mật khẩu phải chứa ít nhất 1 chữ thường, 1 chữ hoa, 1 số và 1 ký tự đặc biệt')
 		}
 	}
 
@@ -425,22 +417,35 @@ export class UserService {
 	 * Format user response cho detailed view
 	 */
 	private formatUserResponse(user: FullUser): UserResponseDto {
+		const { hashedPassword, passwordResetToken, passwordResetTokenExpiry, ...safeUser } = user;
+
+		// Format role and permissions
+		const role = user.role ? {
+			...user.role,
+			permissions: user.role.permissions?.map(p => ({
+				id: p.id,
+				name: p.name,
+				description: p.description
+			}))
+		} : null;
+
 		return {
-			id: user.id,
-			email: user.email,
-			name: user.name,
-			avatarUrl: user.avatarUrl,
-			image: user.image,
-			emailVerified: user.emailVerified,
-			roleId: user.roleId,
-			createdAt: user.createdAt,
-			updatedAt: user.updatedAt,
-			deletedAt: user.deletedAt,
-			role: user.role,
-			profile: user.profile,
-			accounts: user.accounts,
-			_count: user._count
-		}
+			...safeUser,
+			metaTitle: safeUser.metaTitle ?? undefined,
+			metaDescription: safeUser.metaDescription ?? undefined,
+			role,
+			profile: user.profile || null,
+			accounts: user.accounts || [],
+			_count: {
+				blogs: user._count?.blogs ?? 0,
+				medias: user._count?.medias ?? 0,
+				recruitments: user._count?.recruitments ?? 0,
+				likedBlogs: user._count?.likedBlogs ?? 0,
+				bookmarkedBlogs: user._count?.bookmarkedBlogs ?? 0,
+				blogComments: user._count?.blogComments ?? 0,
+				contactSubmissionResponses: user._count?.contactSubmissionResponses ?? 0,
+			}
+		};
 	}
 
 	/**
@@ -622,24 +627,34 @@ export class UserService {
 		this.logger.log(`🔍 Tìm kiếm ACTIVE users với query: ${JSON.stringify(query)}`)
 
 		try {
-			// 1. VALIDATE & PREPARE PARAMETERS
-			const { page, limit } = this.validatePaginationParams(query.page || 1, query.limit || DEFAULT_PAGE_SIZE)
+			// 1. USE VALIDATED & TRANSFORMED PARAMETERS FROM DTO
+			const {
+				page = 1,
+				limit = DEFAULT_PAGE_SIZE,
+				search,
+				roleId,
+				verified,
+				dateFrom,
+				dateTo,
+				sortBy,
+				sortOrder
+			} = query
 			
 			// 2. BUILD FILTERS - CHỈ CHO ACTIVE USERS
 			const filters: UserFilterOptions = {
-				search: query.search,
-				roleId: query.roleId,
-				verified: query.verified,
-				dateFrom: query.dateFrom,
-				dateTo: query.dateTo,
+				search,
+				roleId,
+				verified,
+				dateFrom,
+				dateTo,
 				includeDeleted: false,  // FORCE exclude deleted users
 				deleted: false          // EXPLICITLY active users only
 			}
 
 			// 3. BUILD SORT - DEFAULT createdAt DESC cho active users
 			const sort: UserSortOptions = { 
-				sortBy: query.sortBy || 'createdAt', 
-				sortOrder: query.sortOrder || 'desc' 
+				sortBy: sortBy || 'createdAt', 
+				sortOrder: sortOrder || 'desc' 
 			}
 
 			// 4. BUILD QUERIES
@@ -681,24 +696,34 @@ export class UserService {
 		this.logger.log(`Tìm kiếm deleted users với query: ${JSON.stringify(query)}`)
 
 		try {
-			// 1. VALIDATE & PREPARE PARAMETERS
-			const { page, limit } = this.validatePaginationParams(query.page || 1, query.limit || DEFAULT_PAGE_SIZE)
+			// 1. USE VALIDATED & TRANSFORMED PARAMETERS FROM DTO
+			const {
+				page = 1,
+				limit = DEFAULT_PAGE_SIZE,
+				search,
+				roleId,
+				verified,
+				dateFrom,
+				dateTo,
+				sortBy,
+				sortOrder
+			} = query
 
 			// 2. BUILD FILTERS - CHỈ CHO DELETED USERS
 			const filters: UserFilterOptions = {
-				search: query.search,
-				roleId: query.roleId,
-				verified: query.verified,
-				dateFrom: query.dateFrom,
-				dateTo: query.dateTo,
+				search,
+				roleId,
+				verified,
+				dateFrom,
+				dateTo,
 				deleted: true,        // FORCE chỉ deleted users
 				includeDeleted: true  // EXPLICITLY allow deleted users
 			}
 
 			// 3. BUILD SORT - DEFAULT deletedAt DESC cho deleted users
 			const sort: UserSortOptions = { 
-				sortBy: query.sortBy || 'deletedAt', 
-				sortOrder: query.sortOrder || 'desc' 
+				sortBy: sortBy || 'deletedAt', 
+				sortOrder: sortOrder || 'desc' 
 			}
 
 			// 4. BUILD QUERIES
@@ -901,38 +926,38 @@ export class UserService {
 		this.logger.log(`Tạo user mới với email: ${createUserDto.email}`)
 
 		try {
-			const { email, password, name, roleId, avatarUrl, image } = createUserDto
-
-			// Validate email chưa được sử dụng
-			await this.validateEmailUnique(email)
-
-			// Validate role nếu có
-			if (roleId) {
-				await this.validateRole(roleId)
+			// 1. VALIDATE & CHECK EXISTING USER
+			await this.validateEmailUnique(createUserDto.email)
+			if (createUserDto.roleId) {
+				await this.validateRole(createUserDto.roleId)
 			}
+			this.validatePasswordStrength(createUserDto.password)
 
-			// Validate password strength
-			this.validatePasswordStrength(password)
+			// 2. HASH PASSWORD
+			const hashedPassword = await this.hashPassword(createUserDto.password)
 
-			// Hash password
-			const hashedPassword = await this.hashPassword(password)
+			// 3. PREPARE DATA
+			const dataToCreate: Prisma.UserCreateInput = {
+				email: createUserDto.email,
+				name: createUserDto.name,
+				hashedPassword,
+				role: createUserDto.roleId ? { connect: { id: createUserDto.roleId } } : undefined,
+				avatarUrl: createUserDto.avatarUrl,
+				image: createUserDto.image,
+				emailVerified: createUserDto.emailVerified ? new Date(createUserDto.emailVerified) : null,
+				profile: createUserDto.profile ? { create: createUserDto.profile } : undefined
+			};
 
-			// Tạo user trong database
-			const user = await this.prisma.user.create({
-				data: {
-					email: email.toLowerCase().trim(),
-					hashedPassword,
-					name: name?.trim() || null,
-					roleId: roleId || null,
-					avatarUrl: avatarUrl?.trim() || null,
-					image: image?.trim() || null,
-					emailVerified: null // Cần verify email sau
-				},
+			// 4. CREATE USER
+			const newUser = await this.prisma.user.create({ 
+				data: dataToCreate,
 				include: DETAILED_INCLUDES
 			})
 
-			this.logger.log(`User được tạo thành công với ID: ${user.id}`)
-			return this.formatUserResponse(user)
+			this.logger.log(`✅ Tạo thành công user mới với ID: ${newUser.id}`)
+
+			// 5. RETURN FORMATTED RESPONSE
+			return this.formatUserResponse(newUser)
 		} catch (error) {
 			if (error instanceof BadRequestException || error instanceof ConflictException) {
 				throw error
@@ -946,61 +971,73 @@ export class UserService {
 	 * Cập nhật user
 	 */
 	async update(id: number, updateUserDto: UpdateUserDto): Promise<UserResponseDto> {
-		this.logger.log(`Cập nhật user với ID: ${id}`)
-
+		this.logger.log(`Cập nhật user ID: ${id}`)
+		
 		try {
-			// Kiểm tra user tồn tại
-			const existingUser = await this.findOne(id)
-
+			// 1. VALIDATE & PREPARE DATA
 			const { email, name, roleId, avatarUrl, image } = updateUserDto
 
-			// Validate email uniqueness nếu email thay đổi
-			if (email && email !== existingUser.email) {
+			const user = await this.prisma.user.findUnique({ where: { id } })
+			if (!user) {
+				throw new NotFoundException(`User với ID ${id} không tồn tại`)
+			}
+
+			if (email && email !== user.email) {
 				await this.validateEmailUnique(email, id)
 			}
 
-			// Validate role nếu có
-			if (roleId) {
+			if (roleId && roleId !== user.roleId) {
 				await this.validateRole(roleId)
 			}
-
-			// Chuẩn bị data để update
-			const updateData: Prisma.UserUpdateInput = {}
+			
+			// 2. PREPARE UPDATE DATA
+			const dataToUpdate: Prisma.UserUpdateInput = {}
 
 			if (email) {
-				updateData.email = email.toLowerCase().trim()
+				dataToUpdate.email = email.toLowerCase().trim()
 			}
 
 			if (name !== undefined) {
-				updateData.name = name?.trim() || null
+				dataToUpdate.name = name?.trim() || null
 			}
 
 			if (roleId !== undefined) {
-				updateData.role = roleId ? { connect: { id: roleId } } : { disconnect: true }
+				dataToUpdate.role = roleId ? { connect: { id: roleId } } : { disconnect: true }
 			}
 
 			if (avatarUrl !== undefined) {
-				updateData.avatarUrl = avatarUrl?.trim() || null
+				dataToUpdate.avatarUrl = avatarUrl?.trim() || null
 			}
 
 			if (image !== undefined) {
-				updateData.image = image?.trim() || null
+				dataToUpdate.image = image?.trim() || null
 			}
 
-			// Update user
+			if (updateUserDto.profile) {
+				dataToUpdate.profile = {
+					upsert: {
+						create: updateUserDto.profile,
+						update: updateUserDto.profile,
+					},
+				};
+			}
+
+			// 3. UPDATE USER
 			const updatedUser = await this.prisma.user.update({
 				where: { id },
-				data: updateData,
-				include: DETAILED_INCLUDES
+				data: dataToUpdate,
+				include: DETAILED_INCLUDES,
 			})
 
-			this.logger.log(`User được cập nhật thành công với ID: ${id}`)
+			this.logger.log(`✅ Cập nhật thành công user ID: ${id}`)
+			
+			// 4. RETURN FORMATTED RESPONSE
 			return this.formatUserResponse(updatedUser)
 		} catch (error) {
 			if (error instanceof NotFoundException || error instanceof BadRequestException || error instanceof ConflictException) {
 				throw error
 			}
-			this.logger.error(`Lỗi khi cập nhật user với ID ${id}: ${error.message}`, error.stack)
+			this.logger.error(`Lỗi khi cập nhật user ID ${id}: ${error.message}`, error.stack)
 			throw new InternalServerErrorException('Không thể cập nhật người dùng')
 		}
 	}
@@ -1112,13 +1149,24 @@ export class UserService {
 			}
 
 			// Restore user
-			const restoredUser = await this.prisma.user.update({
+			await this.prisma.user.update({
 				where: { id },
 				data: { deletedAt: null },
 				include: DETAILED_INCLUDES
 			})
 
-			this.logger.log(`User được khôi phục thành công với ID: ${id}`)
+			const restoredUser = await this.prisma.user.findUnique({
+				where: { id },
+				include: DETAILED_INCLUDES
+			});
+
+			this.logger.log(`✅ Khôi phục thành công user ID: ${id}`)
+			
+			// 5. RETURN FORMATTED RESPONSE
+			if (!restoredUser) {
+				// This case should theoretically not happen if the restore operation was successful
+				throw new InternalServerErrorException('Không thể lấy thông tin người dùng sau khi khôi phục');
+			}
 			return this.formatUserResponse(restoredUser)
 		} catch (error) {
 			if (error instanceof NotFoundException || error instanceof BadRequestException) {
@@ -1599,7 +1647,8 @@ export class UserService {
 				include: DETAILED_INCLUDES
 			})
 
-			this.logger.log(`Admin action ${actionDto.action} hoàn thành cho user ID: ${id}`)
+			this.logger.log(`✅ Thực hiện action '${actionDto.action}' thành công cho user ID: ${id}`)
+
 			return this.formatUserResponse(updatedUser)
 		} catch (error) {
 			if (error instanceof NotFoundException || error instanceof BadRequestException) {

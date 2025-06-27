@@ -403,7 +403,7 @@ export class UserController {
 	async bulkDelete(
 		@Body() body: BulkUserOperationDto,
 	): Promise<BulkDeleteResponseDto> {
-		this.logger.log(`POST /users/bulk/delete - Deleting users: ${body.userIds.join(', ')}`)
+		this.logger.log(`POST /users/bulk/delete - IDs: ${body.userIds.join(', ')}`)
 		return this.userService.bulkDelete(body.userIds)
 	}
 
@@ -412,22 +412,47 @@ export class UserController {
 	 * Xóa vĩnh viễn nhiều người dùng
 	 */
 	@Post('bulk/permanent-delete')
+	@CrudPermissions.Users.PermanentDelete()
 	@HttpCode(HttpStatus.OK)
-	@CrudPermissions.Users.BulkPermanentDelete()
 	@ApiOperation({
-		summary: 'Xóa vĩnh viễn nhiều người dùng (NGUY HIỂM)',
-		description: 'Xóa vĩnh viễn nhiều người dùng khỏi hệ thống. Thao tác này không thể hoàn tác.'
+		summary: 'Xóa vĩnh viễn nhiều người dùng',
+		description: 'Xóa vĩnh viễn nhiều người dùng và tất cả dữ liệu liên quan của họ.',
 	})
 	@ApiResponse({
 		status: 200,
-		description: 'Thao tác xóa vĩnh viễn hàng loạt hoàn tất',
-		type: BulkPermanentDeleteResponseDto
+		description: 'Số người dùng đã được xóa vĩnh viễn thành công',
+		type: BulkPermanentDeleteResponseDto,
 	})
 	async bulkPermanentDelete(
 		@Body() body: BulkUserOperationDto,
 	): Promise<BulkPermanentDeleteResponseDto> {
-		this.logger.log(`POST /users/bulk/permanent-delete - Permanently deleting users: ${body.userIds.join(', ')}`)
+		this.logger.log(
+			`POST /users/bulk/permanent-delete - IDs: ${body.userIds.join(', ')}`,
+		)
 		return this.userService.bulkPermanentDelete(body.userIds)
+	}
+
+	/**
+	 * POST /api/users/bulk/restore
+	 * Khôi phục nhiều người dùng đã xóa
+	 */
+	@Post('bulk/restore')
+	@CrudPermissions.Users.Restore()
+	@HttpCode(HttpStatus.OK)
+	@ApiOperation({
+		summary: 'Khôi phục nhiều người dùng',
+		description: 'Khôi phục nhiều người dùng đã bị xóa mềm.',
+	})
+	@ApiResponse({
+		status: 200,
+		description: 'Số người dùng đã được khôi phục thành công',
+		type: BulkRestoreResponseDto,
+	})
+	async bulkRestore(
+		@Body() body: BulkUserOperationDto,
+	): Promise<BulkRestoreResponseDto> {
+		this.logger.log(`POST /users/bulk/restore - IDs: ${body.userIds.join(', ')}`)
+		return this.userService.bulkRestore(body.userIds)
 	}
 
 	/**
