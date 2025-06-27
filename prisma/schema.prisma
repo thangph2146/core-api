@@ -148,7 +148,8 @@ model Account {
 model UserProfile {
   id              Int       @id @default(autoincrement())
   userId          Int       @unique
-  bio             String?
+  bio             String?   @db.Text
+  phone           String?
   avatarUrl       String?
   socialLinks     Json?
   createdAt       DateTime  @default(now())

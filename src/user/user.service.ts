@@ -60,6 +60,7 @@ type FullUser = User & {
 		socialLinks: Prisma.JsonValue
 		createdAt: Date
 		updatedAt: Date
+		phone?: string | null
 	} | null
 	accounts?: {
 		id: string
@@ -169,7 +170,8 @@ const DETAILED_INCLUDES = {
 			avatarUrl: true,
 			socialLinks: true,
 			createdAt: true,
-			updatedAt: true
+			updatedAt: true,
+			phone: true
 		}
 	},
 	accounts: {
@@ -426,7 +428,7 @@ export class UserService {
 				id: p.id,
 				name: p.name,
 				description: p.description
-			}))
+			})) || []
 		} : null;
 
 		return {
@@ -434,7 +436,15 @@ export class UserService {
 			metaTitle: safeUser.metaTitle ?? undefined,
 			metaDescription: safeUser.metaDescription ?? undefined,
 			role,
-			profile: user.profile || null,
+			profile: user.profile ? {
+				id: user.profile.id,
+				bio: user.profile.bio,
+				phone: user.profile.phone ?? null,
+				avatarUrl: user.profile.avatarUrl,
+				socialLinks: user.profile.socialLinks,
+				createdAt: user.profile.createdAt,
+				updatedAt: user.profile.updatedAt,
+			} : null,
 			accounts: user.accounts || [],
 			_count: {
 				blogs: user._count?.blogs ?? 0,
@@ -975,7 +985,7 @@ export class UserService {
 		
 		try {
 			// 1. VALIDATE & PREPARE DATA
-			const { email, name, roleId, avatarUrl, image } = updateUserDto
+			const { email, name, roleId, avatarUrl, image, bio, phone, profile: profileDto } = updateUserDto
 
 			const user = await this.prisma.user.findUnique({ where: { id } })
 			if (!user) {
@@ -992,34 +1002,27 @@ export class UserService {
 			
 			// 2. PREPARE UPDATE DATA
 			const dataToUpdate: Prisma.UserUpdateInput = {}
+			const profileData: Prisma.UserProfileCreateWithoutUserInput = {}
 
-			if (email) {
-				dataToUpdate.email = email.toLowerCase().trim()
-			}
+			if (email) dataToUpdate.email = email.toLowerCase().trim()
+			if (name !== undefined) dataToUpdate.name = name?.trim() || null
+			if (roleId !== undefined) dataToUpdate.role = roleId ? { connect: { id: roleId } } : { disconnect: true }
+			if (avatarUrl !== undefined) dataToUpdate.avatarUrl = avatarUrl?.trim() || null
+			if (image !== undefined) dataToUpdate.image = image?.trim() || null
 
-			if (name !== undefined) {
-				dataToUpdate.name = name?.trim() || null
-			}
-
-			if (roleId !== undefined) {
-				dataToUpdate.role = roleId ? { connect: { id: roleId } } : { disconnect: true }
-			}
-
-			if (avatarUrl !== undefined) {
-				dataToUpdate.avatarUrl = avatarUrl?.trim() || null
-			}
-
-			if (image !== undefined) {
-				dataToUpdate.image = image?.trim() || null
-			}
-
-			if (updateUserDto.profile) {
+			// Combine profile data from top-level and nested `profile` DTO
+			if (bio !== undefined) profileData.bio = bio
+			if (phone !== undefined) profileData.phone = phone
+			if (profileDto) Object.assign(profileData, profileDto)
+			
+			// If there's any profile data, perform an upsert
+			if (Object.keys(profileData).length > 0) {
 				dataToUpdate.profile = {
 					upsert: {
-						create: updateUserDto.profile,
-						update: updateUserDto.profile,
+						create: profileData,
+						update: profileData,
 					},
-				};
+				}
 			}
 
 			// 3. UPDATE USER

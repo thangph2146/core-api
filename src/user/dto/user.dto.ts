@@ -85,6 +85,12 @@ export class UserProfileDto {
   @MaxLength(1000, { message: 'Bio không được vượt quá 1000 ký tự' })
   bio?: string;
 
+  @ApiPropertyOptional({ description: 'Số điện thoại', example: '0901234567' })
+  @IsOptional()
+  @IsString({ message: 'Số điện thoại phải là chuỗi ký tự' })
+  @Matches(/^[0-9]{10,11}$/, { message: 'Số điện thoại không hợp lệ' })
+  phone?: string;
+
   @ApiPropertyOptional({ description: 'URL ảnh đại diện' })
   @IsOptional()
   @IsUrl({}, { message: 'Avatar URL không hợp lệ' })
@@ -224,7 +230,25 @@ export class CreateUserDto {
  */
 export class UpdateUserDto extends PartialType(
   OmitType(CreateUserDto, ['password'] as const),
-) {}
+) {
+  @ValidateNested()
+  @Type(() => UserProfileDto)
+  profile?: UserProfileDto;
+
+  @ApiPropertyOptional({ description: 'Bio mô tả' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000, { message: 'Bio không được vượt quá 1000 ký tự' })
+  @Transform(({ value }) => (value === '' ? null : value))
+  bio?: string;
+
+  @ApiPropertyOptional({ description: 'Số điện thoại', example: '0901234567' })
+  @IsOptional()
+  @IsString({ message: 'Số điện thoại phải là chuỗi ký tự' })
+  @Matches(/^[0-9]{10,11}$/, { message: 'Số điện thoại không hợp lệ' })
+  @Transform(({ value }) => (value === '' ? null : value))
+  phone?: string;
+}
 
 // =============================================================================
 // PASSWORD MANAGEMENT DTOs
@@ -578,6 +602,9 @@ export class UserProfileResponseDto {
 
   @ApiPropertyOptional({ description: 'Bio mô tả' })
   bio: string | null;
+
+  @ApiPropertyOptional({ description: 'Số điện thoại' })
+  phone: string | null;
 
   @ApiPropertyOptional({ description: 'URL ảnh đại diện' })
   avatarUrl: string | null;
