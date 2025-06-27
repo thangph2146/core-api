@@ -155,20 +155,28 @@ export class UserListResponseDto {
 }
 
 export class BulkUserOperationDto {
-  @IsArray()
+  @IsArray({ message: 'userIds must be an array' })
   @ArrayMinSize(1, { message: 'userIds array cannot be empty' })
-  @IsInt({ each: true, message: 'Each user ID must be a positive integer' })
-  @Min(1, { each: true, message: 'Each user ID must be a positive integer' })
   @Transform(({ value }) => {
+    console.log('🔍 BulkUserOperationDto Transform input:', value, 'Type:', typeof value);
+    
     if (!Array.isArray(value)) {
-      return value; // Let class-validator handle the error
+      console.log('❌ Not an array, returning original value');
+      return value;
     }
     
-    return value.map((id) => {
+    const transformed = value.map(id => {
       const num = typeof id === 'string' ? parseInt(id, 10) : Number(id);
-      return isNaN(num) ? id : num; // Let class-validator handle validation
+      console.log(`  - ID: ${id} (${typeof id}) -> ${num} (${typeof num})`);
+      return isNaN(num) ? id : num;
     });
+    
+    console.log('✅ Transformed result:', transformed);
+    return transformed;
   })
+  @Type(() => Number)
+  @IsInt({ each: true, message: 'Each user ID must be a positive integer' })
+  @Min(1, { each: true, message: 'Each user ID must be a positive integer' })
   userIds: number[];
 }
 

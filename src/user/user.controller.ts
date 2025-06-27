@@ -32,6 +32,9 @@ import { SanitizationPipe } from '../common/pipes/sanitization.pipe'
 		transform: true,
 		whitelist: true,
 		forbidNonWhitelisted: true,
+		transformOptions: {
+			enableImplicitConversion: true,
+		},
 	})
 )
 export class UserController {
@@ -108,6 +111,7 @@ export class UserController {
 	@Post(':id/restore')
 	@CrudPermissions.Users.Restore()
 	async restore(@Param('id', ParseIntPipe) id: number) {
+		console.log('🔄 Individual restore controller - id:', id, 'type:', typeof id)
 		return this.userService.restore(id)
 	}
 
@@ -120,10 +124,21 @@ export class UserController {
 
 	// ====== BULK OPERATIONS ======
 
-	@Post('bulk/restore-users')
+	@Post('bulk/restore')
 	@HttpCode(HttpStatus.OK)
 	@CrudPermissions.Users.FullAccess()
 	async bulkRestore(@Body() body: BulkUserOperationDto) {
+		return this.userService.bulkRestore(body.userIds)
+	}
+
+	@Post('bulk/restore-users')
+	@HttpCode(HttpStatus.OK)
+	@CrudPermissions.Users.FullAccess()
+	async bulkRestoreUsers(@Body() body: BulkUserOperationDto) {
+		console.log('🔄 Bulk restore controller - raw body:', JSON.stringify(body, null, 2))
+		console.log('🔄 Bulk restore controller - userIds:', body.userIds)
+		console.log('🔄 Bulk restore controller - userIds type:', typeof body.userIds)
+		console.log('🔄 Bulk restore controller - userIds[0] type:', typeof body.userIds?.[0])
 		return this.userService.bulkRestore(body.userIds)
 	}
 

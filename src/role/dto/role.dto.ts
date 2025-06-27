@@ -7,6 +7,8 @@ import {
   IsNumber,
   MinLength,
   MaxLength,
+  ArrayMinSize,
+  Min,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 
@@ -135,12 +137,19 @@ export class RoleOptionDto {
 
 export class BulkRoleOperationDto {
   @IsArray()
-  @IsInt({ each: true })
-  @Transform(({ value }) =>
-    Array.isArray(value)
-      ? value.map((id) => (typeof id === 'string' ? parseInt(id, 10) : id))
-      : [],
-  )
+  @ArrayMinSize(1, { message: 'roleIds array cannot be empty' })
+  @IsInt({ each: true, message: 'Each role ID must be a positive integer' })
+  @Min(1, { each: true, message: 'Each role ID must be a positive integer' })
+  @Transform(({ value }) => {
+    if (!Array.isArray(value)) {
+      return value; // Let class-validator handle the error
+    }
+
+    return value.map((id) => {
+      const num = typeof id === 'string' ? parseInt(id, 10) : Number(id);
+      return isNaN(num) ? id : num; // Let class-validator handle validation
+    });
+  })
   roleIds: number[];
 }
 

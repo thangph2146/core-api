@@ -33,19 +33,47 @@ export class RoleController {
 	@Get()
 	@CrudPermissions.Roles.Read()
 	async findAll(@Query() query: RoleQueryDto) {
-		return this.roleService.findAll(query)
+		return this.roleService.findAll({ ...query, deleted: false })
+	}
+
+	@Get('deleted')
+	@CrudPermissions.Roles.Read()
+	async findDeleted(@Query() query: RoleQueryDto) {
+		return this.roleService.findAll({ ...query, deleted: true })
 	}
 
 	@Get('stats')
 	@CrudPermissions.Roles.Read()
-	async getRoleStats(@Query('deleted') deleted: boolean) {
-		return this.roleService.getRoleStats(deleted)
+	async getRoleStats(@Query('deleted') deleted: string) {
+		const isDeleted = deleted === 'true'
+		return this.roleService.getRoleStats(isDeleted)
 	}
 
 	@Get('options')
 	@Public()
 	async getRoleOptions() {
 		return this.roleService.getRoleOptions()
+	}
+
+	@Post('bulk/delete')
+	@HttpCode(HttpStatus.OK)
+	@CrudPermissions.Roles.FullAccess()
+	async bulkDelete(@Body() bulkDto: BulkRoleOperationDto) {
+		return this.roleService.bulkDelete(bulkDto.roleIds)
+	}
+
+	@Post('bulk/restore')
+	@HttpCode(HttpStatus.OK)
+	@CrudPermissions.Roles.FullAccess()
+	async bulkRestore(@Body() bulkDto: BulkRoleOperationDto) {
+		return this.roleService.bulkRestore(bulkDto.roleIds)
+	}
+
+	@Post('bulk/permanent-delete')
+	@HttpCode(HttpStatus.OK)
+	@CrudPermissions.Roles.FullAccess()
+	async bulkPermanentDelete(@Body() bulkDto: BulkRoleOperationDto) {
+		return this.roleService.bulkPermanentDelete(bulkDto.roleIds)
 	}
 
 	@Get(':id')
@@ -89,26 +117,5 @@ export class RoleController {
 	@CrudPermissions.Roles.FullAccess()
 	async permanentDelete(@Param('id', ParseIntPipe) id: number) {
 		await this.roleService.permanentDelete(id)
-	}
-
-	@Post('bulk/delete')
-	@HttpCode(HttpStatus.OK)
-	@CrudPermissions.Roles.FullAccess()
-	async bulkDelete(@Body() bulkDto: BulkRoleOperationDto) {
-		return this.roleService.bulkDelete(bulkDto.roleIds)
-	}
-
-	@Post('bulk/restore')
-	@HttpCode(HttpStatus.OK)
-	@CrudPermissions.Roles.FullAccess()
-	async bulkRestore(@Body() bulkDto: BulkRoleOperationDto) {
-		return this.roleService.bulkRestore(bulkDto.roleIds)
-	}
-
-	@Post('bulk/permanent-delete')
-	@HttpCode(HttpStatus.OK)
-	@CrudPermissions.Roles.FullAccess()
-	async bulkPermanentDelete(@Body() bulkDto: BulkRoleOperationDto) {
-		return this.roleService.bulkPermanentDelete(bulkDto.roleIds)
 	}
 }
