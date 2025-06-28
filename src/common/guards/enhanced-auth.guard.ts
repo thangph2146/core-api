@@ -26,6 +26,28 @@ export class EnhancedAuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest();
     const startTime = Date.now();
 
+    // Check if guards should be skipped (for debugging)
+    const skipGuards = this.reflector.getAllAndOverride<boolean>(
+      'skipGuards',
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (skipGuards) {
+      this.logger.debug(`Skipping guards for debugging: ${request.method} ${request.url}`);
+      return true;
+    }
+
+    // Check if endpoint is marked as public
+    const isPublic = this.reflector.getAllAndOverride<boolean>(
+      'isPublic',
+      [context.getHandler(), context.getClass()],
+    );
+
+    if (isPublic) {
+      this.logger.debug(`Public endpoint accessed: ${request.method} ${request.url}`);
+      return true;
+    }
+
     try {
       // Get token from Authorization header or cookies
       const token = this.extractToken(request);

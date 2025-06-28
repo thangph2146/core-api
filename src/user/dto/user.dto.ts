@@ -21,7 +21,12 @@ import {
   ArrayNotEmpty,
 } from 'class-validator';
 import { Transform, Type, Exclude } from 'class-transformer';
-import { ApiProperty, ApiPropertyOptional, PartialType, OmitType } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  PartialType,
+  OmitType,
+} from '@nestjs/swagger';
 
 // =============================================================================
 // DOCUMENTATION
@@ -47,18 +52,18 @@ import { ApiProperty, ApiPropertyOptional, PartialType, OmitType } from '@nestjs
 // =============================================================================
 export enum SortOrder {
   ASC = 'asc',
-  DESC = 'desc'
+  DESC = 'desc',
 }
 
 export enum UserSortBy {
   ID = 'id',
-  EMAIL = 'email', 
+  EMAIL = 'email',
   NAME = 'name',
   CREATED_AT = 'createdAt',
   UPDATED_AT = 'updatedAt',
   DELETED_AT = 'deletedAt', // Added for sorting deleted users
   ROLE_ID = 'roleId',
-  EMAIL_VERIFIED = 'emailVerified'
+  EMAIL_VERIFIED = 'emailVerified',
 }
 
 export enum AdminUserAction {
@@ -66,13 +71,13 @@ export enum AdminUserAction {
   ACTIVATE = 'activate',
   VERIFY_EMAIL = 'verify_email',
   UNVERIFY_EMAIL = 'unverify_email',
-  FORCE_PASSWORD_RESET = 'force_password_reset'
+  FORCE_PASSWORD_RESET = 'force_password_reset',
 }
 
 export enum ExportFormat {
   CSV = 'csv',
   XLSX = 'xlsx',
-  JSON = 'json'
+  JSON = 'json',
 }
 
 // =============================================================================
@@ -162,20 +167,20 @@ export class UserAccountDto {
 // CREATE & UPDATE DTOs
 // =============================================================================
 export class CreateUserDto {
-  @ApiProperty({ 
-    description: 'Email người dùng', 
+  @ApiProperty({
+    description: 'Email người dùng',
     example: 'user@example.com',
-    uniqueItems: true 
+    uniqueItems: true,
   })
   @IsEmail({}, { message: 'Email không đúng định dạng' })
   @Transform(({ value }) => value?.toLowerCase().trim())
   email: string;
 
-  @ApiProperty({ 
-    description: 'Tên đầy đủ của người dùng', 
+  @ApiProperty({
+    description: 'Tên đầy đủ của người dùng',
     example: 'Nguyễn Văn A',
     minLength: 2,
-    maxLength: 100 
+    maxLength: 100,
   })
   @IsString({ message: 'Tên là bắt buộc và phải là chuỗi ký tự' })
   @MinLength(2, { message: 'Tên phải có ít nhất 2 ký tự' })
@@ -183,15 +188,16 @@ export class CreateUserDto {
   @Transform(({ value }) => value?.trim())
   name: string;
 
-  @ApiProperty({ 
-    description: 'Mật khẩu người dùng', 
+  @ApiProperty({
+    description: 'Mật khẩu người dùng',
     minLength: 8,
-    example: 'SecurePassword123!'
+    example: 'SecurePassword123!',
   })
   @IsString({ message: 'Mật khẩu là bắt buộc' })
   @MinLength(8, { message: 'Mật khẩu phải có ít nhất 8 ký tự' })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).*$/, {
-    message: 'Mật khẩu phải chứa ít nhất 1 chữ thường, 1 chữ hoa, 1 số và 1 ký tự đặc biệt'
+    message:
+      'Mật khẩu phải chứa ít nhất 1 chữ thường, 1 chữ hoa, 1 số và 1 ký tự đặc biệt',
   })
   password: string;
 
@@ -206,6 +212,7 @@ export class CreateUserDto {
   image?: string;
 
   @ApiPropertyOptional({ description: 'ID vai trò của người dùng' })
+  @IsOptional()
   @IsInt({ message: 'Role ID phải là số nguyên' })
   @IsPositive({ message: 'Role ID phải lớn hơn 0' })
   @Type(() => Number)
@@ -263,7 +270,8 @@ export class ChangePasswordDto {
   @IsString({ message: 'Mật khẩu mới là bắt buộc' })
   @MinLength(8, { message: 'Mật khẩu mới phải có ít nhất 8 ký tự' })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).*$/, {
-    message: 'Mật khẩu mới phải chứa ít nhất 1 chữ thường, 1 chữ hoa, 1 số và 1 ký tự đặc biệt'
+    message:
+      'Mật khẩu mới phải chứa ít nhất 1 chữ thường, 1 chữ hoa, 1 số và 1 ký tự đặc biệt',
   })
   newPassword: string;
 
@@ -274,9 +282,9 @@ export class ChangePasswordDto {
 }
 
 export class ForgotPasswordDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Email để gửi yêu cầu reset mật khẩu',
-    example: 'user@example.com' 
+    example: 'user@example.com',
   })
   @IsEmail({}, { message: 'Email không đúng định dạng' })
   @Transform(({ value }) => value?.toLowerCase().trim())
@@ -293,7 +301,8 @@ export class ResetPasswordDto {
   @IsString({ message: 'Mật khẩu mới là bắt buộc' })
   @MinLength(8, { message: 'Mật khẩu mới phải có ít nhất 8 ký tự' })
   @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*(),.?":{}|<>]).*$/, {
-    message: 'Mật khẩu mới phải chứa ít nhất 1 chữ thường, 1 chữ hoa, 1 số và 1 ký tự đặc biệt'
+    message:
+      'Mật khẩu mới phải chứa ít nhất 1 chữ thường, 1 chữ hoa, 1 số và 1 ký tự đặc biệt',
   })
   newPassword: string;
 
@@ -307,11 +316,11 @@ export class ResetPasswordDto {
 // QUERY & FILTER DTOs
 // =============================================================================
 export class UserQueryDto {
-  @ApiPropertyOptional({ 
-    description: 'Số trang (bắt đầu từ 1)', 
-    minimum: 1, 
+  @ApiPropertyOptional({
+    description: 'Số trang (bắt đầu từ 1)',
+    minimum: 1,
     default: 1,
-    example: 1 
+    example: 1,
   })
   @IsOptional()
   @Type(() => Number)
@@ -323,12 +332,12 @@ export class UserQueryDto {
   })
   page?: number = 1;
 
-  @ApiPropertyOptional({ 
-    description: 'Số lượng bản ghi mỗi trang', 
-    minimum: 1, 
-    maximum: 100, 
+  @ApiPropertyOptional({
+    description: 'Số lượng bản ghi mỗi trang',
+    minimum: 1,
+    maximum: 100,
     default: 10,
-    example: 10 
+    example: 10,
   })
   @IsOptional()
   @Type(() => Number)
@@ -341,10 +350,10 @@ export class UserQueryDto {
   })
   limit?: number = 10;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Từ khóa tìm kiếm (tên hoặc email)',
     maxLength: 255,
-    example: 'Nguyễn' 
+    example: 'Nguyễn',
   })
   @IsOptional()
   @IsString({ message: 'Search phải là chuỗi ký tự' })
@@ -352,10 +361,10 @@ export class UserQueryDto {
   @Transform(({ value }) => value?.trim())
   search?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Lọc theo ID vai trò',
     minimum: 1,
-    example: 1 
+    example: 1,
   })
   @IsOptional()
   @Type(() => Number)
@@ -368,30 +377,30 @@ export class UserQueryDto {
   })
   roleId?: number;
 
-  @ApiPropertyOptional({ 
-    description: 'Trường để sắp xếp', 
+  @ApiPropertyOptional({
+    description: 'Trường để sắp xếp',
     enum: UserSortBy,
     default: UserSortBy.CREATED_AT,
-    example: UserSortBy.CREATED_AT 
+    example: UserSortBy.CREATED_AT,
   })
   @IsOptional()
   @IsEnum(UserSortBy, { message: 'Sort by không hợp lệ' })
   sortBy?: UserSortBy = UserSortBy.CREATED_AT;
 
-  @ApiPropertyOptional({ 
-    description: 'Thứ tự sắp xếp', 
+  @ApiPropertyOptional({
+    description: 'Thứ tự sắp xếp',
     enum: SortOrder,
     default: SortOrder.DESC,
-    example: SortOrder.DESC 
+    example: SortOrder.DESC,
   })
   @IsOptional()
   @IsEnum(SortOrder, { message: 'Sort order phải là asc hoặc desc' })
   sortOrder?: SortOrder = SortOrder.DESC;
 
-  @ApiPropertyOptional({ 
-    description: 'Bao gồm cả người dùng đã xóa', 
+  @ApiPropertyOptional({
+    description: 'Bao gồm cả người dùng đã xóa',
     default: false,
-    example: false 
+    example: false,
   })
   @IsOptional()
   @Transform(({ value }) => {
@@ -403,10 +412,10 @@ export class UserQueryDto {
   @IsBoolean({ message: 'Include deleted phải là boolean' })
   includeDeleted?: boolean = false;
 
-  @ApiPropertyOptional({ 
-    description: 'Chỉ hiển thị người dùng đã xóa', 
+  @ApiPropertyOptional({
+    description: 'Chỉ hiển thị người dùng đã xóa',
     default: false,
-    example: false 
+    example: false,
   })
   @IsOptional()
   @Transform(({ value }) => {
@@ -418,9 +427,9 @@ export class UserQueryDto {
   @IsBoolean({ message: 'Deleted phải là boolean' })
   deleted?: boolean = false;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Lọc theo trạng thái xác thực email',
-    example: true 
+    example: true,
   })
   @IsOptional()
   @Transform(({ value }) => {
@@ -432,17 +441,17 @@ export class UserQueryDto {
   @IsBoolean({ message: 'Verified phải là boolean' })
   verified?: boolean;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Lọc từ ngày (YYYY-MM-DD)',
-    example: '2024-01-01' 
+    example: '2024-01-01',
   })
   @IsOptional()
   @IsDateString({}, { message: 'Date from phải là ngày hợp lệ (YYYY-MM-DD)' })
   dateFrom?: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Lọc đến ngày (YYYY-MM-DD)',
-    example: '2024-12-31' 
+    example: '2024-12-31',
   })
   @IsOptional()
   @IsDateString({}, { message: 'Date to phải là ngày hợp lệ (YYYY-MM-DD)' })
@@ -450,9 +459,9 @@ export class UserQueryDto {
 }
 
 export class UserStatsQueryDto {
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Bao gồm người dùng đã xóa trong thống kê',
-    default: false 
+    default: false,
   })
   @IsOptional()
   @Transform(({ value }) => {
@@ -464,14 +473,14 @@ export class UserStatsQueryDto {
   @IsBoolean({ message: 'Include deleted phải là boolean' })
   includeDeleted?: boolean = false;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Nhóm thống kê theo khoảng thời gian',
     enum: ['day', 'week', 'month', 'year'],
-    example: 'month' 
+    example: 'month',
   })
   @IsOptional()
-  @IsEnum(['day', 'week', 'month', 'year'], { 
-    message: 'Group by phải là day, week, month hoặc year' 
+  @IsEnum(['day', 'week', 'month', 'year'], {
+    message: 'Group by phải là day, week, month hoặc year',
   })
   groupBy?: 'day' | 'week' | 'month' | 'year';
 }
@@ -480,12 +489,18 @@ export class UserStatsQueryDto {
 // BULK OPERATION DTOs
 // =============================================================================
 export class BulkUserOperationDto {
-  @ApiProperty({ 
-    description: 'Mảng ID người dùng cần thao tác', 
+  @ApiProperty({
+    description: 'Mảng ID người dùng cần thao tác',
     type: [Number],
     example: [1, 2, 3],
     minItems: 1,
-    maxItems: 100
+    maxItems: 100,
+  })
+  @Transform(({ value }) => {
+    if (Array.isArray(value)) {
+      return value.map(Number).filter((id) => !isNaN(id) && id > 0);
+    }
+    return value;
   })
   @IsArray({ message: 'userIds phải là một mảng' })
   @ArrayNotEmpty({ message: 'Mảng userIds không được rỗng' })
@@ -496,11 +511,32 @@ export class BulkUserOperationDto {
   userIds: number[];
 }
 
+/**
+ * DTO đặc biệt cho bulk restore - thiết kế đơn giản để tránh conflict validation
+ */
+export class BulkRestoreUsersDto {
+  @ApiProperty({
+    description: 'Mảng ID người dùng cần khôi phục',
+    type: [Number],
+    example: [413, 412, 411, 410, 409],
+    isArray: true,
+    minItems: 1,
+    maxItems: 100,
+  })
+  @IsArray({ message: 'userIds phải là một mảng số nguyên' })
+  @ArrayNotEmpty({ message: 'Danh sách userIds không được rỗng' })
+  @ArrayMinSize(1, { message: 'Phải có ít nhất 1 user ID' })
+  @Type(() => Number)
+  @IsInt({ each: true, message: 'Mỗi user ID phải là số nguyên' })
+  @IsPositive({ each: true, message: 'Mỗi user ID phải lớn hơn 0' })
+  userIds: number[];
+}
+
 export class BulkUpdateUserDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Mảng ID người dùng cần cập nhật',
     type: [Number],
-    example: [1, 2, 3] 
+    example: [1, 2, 3],
   })
   @IsArray({ message: 'userIds phải là một mảng' })
   @ArrayNotEmpty({ message: 'Mảng userIds không được rỗng' })
@@ -519,20 +555,21 @@ export class BulkUpdateUserDto {
 // ADMIN & EXPORT DTOs
 // =============================================================================
 export class AdminUserActionDto {
-  @ApiProperty({ 
+  @ApiProperty({
     description: 'Hành động quản trị cần thực hiện',
     enum: AdminUserAction,
-    example: AdminUserAction.SUSPEND 
+    example: AdminUserAction.SUSPEND,
   })
-  @IsEnum(AdminUserAction, { 
-    message: 'Action phải là suspend, activate, verify_email, unverify_email, hoặc force_password_reset' 
+  @IsEnum(AdminUserAction, {
+    message:
+      'Action phải là suspend, activate, verify_email, unverify_email, hoặc force_password_reset',
   })
   action: AdminUserAction;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Lý do thực hiện hành động',
     maxLength: 500,
-    example: 'Vi phạm quy tắc cộng đồng' 
+    example: 'Vi phạm quy tắc cộng đồng',
   })
   @IsOptional()
   @IsString({ message: 'Reason phải là chuỗi ký tự' })
@@ -541,29 +578,29 @@ export class AdminUserActionDto {
 }
 
 export class UserExportDto {
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Định dạng xuất file',
     enum: ExportFormat,
     default: ExportFormat.CSV,
-    example: ExportFormat.CSV 
+    example: ExportFormat.CSV,
   })
   @IsOptional()
   @IsEnum(ExportFormat, { message: 'Format phải là csv, xlsx hoặc json' })
   format?: ExportFormat = ExportFormat.CSV;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Các trường dữ liệu cần xuất',
     type: [String],
-    example: ['id', 'email', 'name', 'role', 'createdAt'] 
+    example: ['id', 'email', 'name', 'role', 'createdAt'],
   })
   @IsOptional()
   @IsArray({ message: 'Fields phải là mảng' })
   @IsString({ each: true, message: 'Mỗi field phải là chuỗi ký tự' })
   fields?: string[];
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Bao gồm người dùng đã xóa trong xuất file',
-    default: false 
+    default: false,
   })
   @IsOptional()
   @IsBoolean({ message: 'Include deleted phải là boolean' })
@@ -728,10 +765,10 @@ export class UserMetaResponseDto {
 }
 
 export class UserListResponseDto {
-  @ApiProperty({ 
-    description: 'Danh sách người dùng', 
+  @ApiProperty({
+    description: 'Danh sách người dùng',
     type: [UserResponseDto],
-    isArray: true 
+    isArray: true,
   })
   data: UserResponseDto[];
 
@@ -755,15 +792,15 @@ export class UserStatsResponseDto {
   @ApiProperty({ description: 'Số người dùng chưa xác thực email' })
   unverified: number;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Thống kê theo vai trò (role_1: 10, role_2: 5)',
-    example: { "role_1": 10, "role_2": 5, "no_role": 2 }
+    example: { role_1: 10, role_2: 5, no_role: 2 },
   })
   byRole?: Record<string, number>;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Thống kê theo khoảng thời gian',
-    example: { "2024-01": 15, "2024-02": 20 }
+    example: { '2024-01': 15, '2024-02': 20 },
   })
   byPeriod?: Record<string, number>;
 
@@ -771,9 +808,9 @@ export class UserStatsResponseDto {
     description: 'Thống kê chi tiết theo vai trò',
     type: 'object',
     additionalProperties: { type: 'number' },
-    example: [{ roleId: 1, roleName: 'Admin', userCount: 5 }]
+    example: [{ roleId: 1, roleName: 'Admin', userCount: 5 }],
   })
-  roleStats?: { roleId: number, roleName: string, userCount: number }[];
+  roleStats?: { roleId: number; roleName: string; userCount: number }[];
 
   @ApiProperty({ description: 'Thời gian tạo thống kê' })
   createdAt: string;
@@ -786,15 +823,15 @@ class BulkOperationResponseDto {
   @ApiProperty({ description: 'Thông báo kết quả' })
   message: string;
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Danh sách các ID không thành công hoặc không được tìm thấy',
-    example: [4, 5] 
+    example: [4, 5],
   })
   failedIds?: number[];
 
-  @ApiPropertyOptional({ 
+  @ApiPropertyOptional({
     description: 'Mảng chứa thông điệp lỗi chi tiết (nếu có)',
-    example: ['User with ID 4 not found.']
+    example: ['User with ID 4 not found.'],
   })
   errors?: string[];
 }
@@ -805,16 +842,25 @@ export class BulkDeleteResponseDto extends BulkOperationResponseDto {
 }
 
 export class BulkRestoreResponseDto extends BulkOperationResponseDto {
-  @ApiProperty({ description: 'Số người dùng đã khôi phục thành công', example: 8 })
+  @ApiProperty({
+    description: 'Số người dùng đã khôi phục thành công',
+    example: 8,
+  })
   restoredCount: number;
 }
 
 export class BulkPermanentDeleteResponseDto extends BulkOperationResponseDto {
-  @ApiProperty({ description: 'Số người dùng đã xóa vĩnh viễn thành công', example: 5 })
+  @ApiProperty({
+    description: 'Số người dùng đã xóa vĩnh viễn thành công',
+    example: 5,
+  })
   deletedCount: number;
 }
 
 export class BulkUpdateResponseDto extends BulkOperationResponseDto {
-  @ApiProperty({ description: 'Số người dùng đã cập nhật thành công', example: 12 })
+  @ApiProperty({
+    description: 'Số người dùng đã cập nhật thành công',
+    example: 12,
+  })
   updatedCount: number;
 }

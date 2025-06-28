@@ -1,9 +1,12 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import * as cookieParser from 'cookie-parser';
+import { ValidationPipe, Logger } from '@nestjs/common';
+import { SanitizationPipe } from './common/pipes/sanitization.pipe';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  const logger = new Logger('Bootstrap');
 
   // Set global API prefix
   app.setGlobalPrefix('api');
@@ -36,9 +39,23 @@ async function bootstrap() {
     ],
   });
 
+  // Add global pipes for validation and sanitization
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // Remove properties that are not in the DTO
+      forbidNonWhitelisted: false, // Temporarily disable to debug
+      transform: true, // Automatically transform payloads to DTO instances
+      transformOptions: {
+        enableImplicitConversion: true, // Allow automatic conversion of basic types
+      },
+      disableErrorMessages: false, // Show detailed error messages for debugging
+    }),
+    new SanitizationPipe(), // Apply sanitization to all incoming data
+  );
+
   const port = process.env.PORT ?? 5678;
   await app.listen(port);
   // Using console.log for server startup message as it's important startup information
-  console.log(`🚀 Application is running on: http://localhost:${port}`);
+  logger.log(`🚀 Application is running on: http://localhost:${port}`);
 }
 bootstrap();

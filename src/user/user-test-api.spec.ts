@@ -1,7 +1,8 @@
 import * as request from 'supertest';
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../app.module';
+import { SanitizationPipe } from '../common/pipes/sanitization.pipe';
 import { requestCounts } from '../common/interceptors/rate-limit.interceptor';
 
 describe('User API - Integration Test Suite', () => {
@@ -14,7 +15,21 @@ describe('User API - Integration Test Suite', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
-    // THIS IS THE CRITICAL FIX
+
+    // APPLY GLOBAL PIPES FOR TESTING
+    // This is crucial for tests to behave like the main application
+    app.useGlobalPipes(
+      new ValidationPipe({
+        whitelist: true,
+        forbidNonWhitelisted: false,
+        transform: true,
+        transformOptions: {
+          enableImplicitConversion: true,
+        },
+      }),
+      new SanitizationPipe(),
+    );
+
     app.setGlobalPrefix('api');
     await app.init();
 
@@ -51,7 +66,7 @@ describe('User API - Integration Test Suite', () => {
           password: 'Password123!',
         })
         .expect(201);
-      
+
       newUserId = response.body.id;
       expect(newUserId).toBeDefined();
     });
@@ -61,8 +76,10 @@ describe('User API - Integration Test Suite', () => {
         .get('/api/users')
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
-      
-      const userExists = response.body.data.some(user => user.id === newUserId);
+
+      const userExists = response.body.data.some(
+        (user) => user.id === newUserId,
+      );
       expect(userExists).toBe(true);
     });
 
@@ -79,7 +96,9 @@ describe('User API - Integration Test Suite', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      const userExists = response.body.data.some(user => user.id === newUserId);
+      const userExists = response.body.data.some(
+        (user) => user.id === newUserId,
+      );
       expect(userExists).toBe(true);
     });
 
@@ -89,8 +108,43 @@ describe('User API - Integration Test Suite', () => {
         .set('Authorization', `Bearer ${accessToken}`)
         .expect(200);
 
-      const userExists = response.body.data.some(user => user.id === newUserId);
+      const userExists = response.body.data.some(
+        (user) => user.id === newUserId,
+      );
       expect(userExists).toBe(false);
     });
+
+    it('should restore the user using bulk restore', async () => {
+      // Restore the user
+      const restoreResponse = await request(app.getHttpServer())
+        .post('/api/users/bulk/restore')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ userIds: [newUserId] })
+        .expect(200);
+
+      expect(restoreResponse.body.restoredCount).toBe(1);
+
+      // Verify the user is no longer in the deleted list
+      const deletedResponse = await request(app.getHttpServer())
+        .get('/api/users/deleted')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      const deletedUserExists = deletedResponse.body.data.some(
+        (user) => user.id === newUserId,
+      );
+      expect(deletedUserExists).toBe(false);
+
+      // Verify the user is back in the active list
+      const activeResponse = await request(app.getHttpServer())
+        .get('/api/users')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      const activeUserExists = activeResponse.body.data.some(
+        (user) => user.id === newUserId,
+      );
+      expect(activeUserExists).toBe(true);
+    });
   });
-}); 
+});
