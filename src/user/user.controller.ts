@@ -16,6 +16,8 @@ import {
   Logger,
   SetMetadata,
   BadRequestException,
+  DefaultValuePipe,
+  ParseBoolPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -310,9 +312,13 @@ export class UserController {
   })
   async findOne(
     @Param('id', ParseIntPipe) id: number,
+    @Query('includeDeleted', new DefaultValuePipe(false), ParseBoolPipe)
+    includeDeleted: boolean,
   ): Promise<UserResponseDto> {
-    this.logger.log(`GET /users/${id} - Getting user details`);
-    return this.userService.findOne(id);
+    this.logger.log(
+      `GET /users/${id} - Getting user details, includeDeleted: ${includeDeleted}`,
+    );
+    return this.userService.findOne(id, includeDeleted);
   }
 
   /**
