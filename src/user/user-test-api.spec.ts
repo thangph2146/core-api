@@ -83,6 +83,19 @@ describe('User API - Integration Test Suite', () => {
       expect(userExists).toBe(true);
     });
 
+    it('should update the user via PATCH', async () => {
+      const updatedName = `Updated Lifecycle Test ${Date.now()}`;
+      const response = await request(app.getHttpServer())
+        .patch(`/api/users/${newUserId}`)
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          name: updatedName,
+        })
+        .expect(200);
+
+      expect(response.body.name).toBe(updatedName);
+    });
+
     it('should soft-delete the user', async () => {
       await request(app.getHttpServer())
         .delete(`/api/users/${newUserId}`)

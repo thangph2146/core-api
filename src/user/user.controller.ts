@@ -3,8 +3,8 @@ import {
   Get,
   Post,
   Put,
-  Body,
   Patch,
+  Body,
   Param,
   Delete,
   Query,
@@ -372,7 +372,7 @@ export class UserController {
    * PUT /api/users/:id
    * Cập nhật thông tin người dùng
    */
-  @Put(':id')
+  @Patch(':id')
   @CrudPermissions.Users.Update()
   @ApiOperation({
     summary: 'Cập nhật thông tin người dùng',
