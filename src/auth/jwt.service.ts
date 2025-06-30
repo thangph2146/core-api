@@ -5,6 +5,7 @@ export interface IJwtPayload {
   userId: number;
   email: string;
   roleId?: number | null;
+  permissions: string[];
   iat?: number;
   exp?: number;
 }
@@ -18,6 +19,7 @@ type UserPayload = {
   id: number;
   email: string;
   roleId?: number | null;
+  permissions: string[];
 };
 
 @Injectable()
@@ -37,6 +39,7 @@ export class JwtService {
       userId: user.id,
       email: user.email,
       roleId: user.roleId,
+      permissions: user.permissions || [],
     };
     return jwt.sign(payload, this.JWT_SECRET, {
       expiresIn: this.JWT_EXPIRES_IN,
@@ -51,6 +54,7 @@ export class JwtService {
       userId: user.id,
       email: user.email,
       roleId: user.roleId,
+      permissions: user.permissions || [],
     };
 
     const accessToken = jwt.sign(payload, this.JWT_SECRET, {
@@ -93,10 +97,11 @@ export class JwtService {
     const payload = this.verifyRefreshToken(refreshToken);
 
     // Create new payload without iat and exp
-    const newPayload: IJwtPayload = {
+    const newPayload: Omit<IJwtPayload, 'iat' | 'exp'> = {
       userId: payload.userId,
       email: payload.email,
       roleId: payload.roleId,
+      permissions: payload.permissions || [],
     };
 
     return jwt.sign(newPayload, this.JWT_SECRET, {

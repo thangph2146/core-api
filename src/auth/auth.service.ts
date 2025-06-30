@@ -11,13 +11,18 @@ import {
   GoogleUserDto,
 } from './dto/auth.dto';
 import * as bcrypt from 'bcryptjs';
-import { User } from '@prisma/client';
+import { User, Role, Permission, UserProfile } from '@prisma/client';
 import { SessionService } from './session.service';
 import { JwtService } from './jwt.service';
 
+type UserWithRelations = User & {
+  role: (Role & { permissions: Permission[] }) | null;
+  profile: UserProfile | null;
+};
+
 // Define a type for the user object without the password.
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-type SafeUser = Omit<User, 'hashedPassword' | 'passwordResetToken'>;
+type SafeUser = Omit<UserWithRelations, 'hashedPassword' | 'passwordResetToken'>;
 
 @Injectable()
 export class AuthService {
@@ -34,7 +39,7 @@ export class AuthService {
    * @param user The full user object from Prisma.
    * @returns A user object without the hashed password.
    */
-  private getSafeUser(user: User): SafeUser {
+  private getSafeUser(user: UserWithRelations): SafeUser {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { hashedPassword, passwordResetToken, ...safeUser } = user;
     return safeUser;
@@ -43,7 +48,7 @@ export class AuthService {
   /**
    * Find user by email, returning the full Prisma User object.
    */
-  async findUserByEmail(email: string): Promise<User | null> {
+  async findUserByEmail(email: string): Promise<UserWithRelations | null> {
     return this.prisma.user.findUnique({
       where: { email },
       include: {
@@ -60,7 +65,7 @@ export class AuthService {
   /**
    * Find user by ID, returning the full Prisma User object.
    */
-  async findUserById(id: number): Promise<User | null> {
+  async findUserById(id: number): Promise<UserWithRelations | null> {
     return this.prisma.user.findUnique({
       where: { id },
       include: {
@@ -148,7 +153,7 @@ export class AuthService {
   async validateCredentials(
     email: string,
     password?: string,
-  ): Promise<User | null> {
+  ): Promise<UserWithRelations | null> {
     const user = await this.findUserByEmail(email);
 
     if (!user) return null;
@@ -161,7 +166,33 @@ export class AuthService {
     if (!user.hashedPassword) return null;
 
     const isPasswordValid = await bcrypt.compare(password, user.hashedPassword);
-    return isPasswordValid ? user : null;
+    return isPasswordValid ? (user as UserWithRelations) : null;
+  }
+
+  /**
+   * Login a user and create a session.
+   */
+  async login(user: UserWithRelations): Promise<{
+    user: SafeUser;
+    accessToken: string;
+    refreshToken: string;
+  }> {
+    const safeUser = this.getSafeUser(user);
+    const permissions = user.role?.permissions.map(p => p.name) || [];
+
+    const tokens = this.jwtService.generateTokens({
+      id: user.id,
+      email: user.email,
+      roleId: user.roleId,
+      permissions,
+    });
+
+    await this.sessionService.createSession(user.id);
+
+    return {
+      user: safeUser,
+      ...tokens,
+    };
   }
 
   /**
@@ -198,7 +229,7 @@ export class AuthService {
    * Implements a rotating refresh token strategy.
    */
   async refreshUserToken(oldRefreshToken: string): Promise<{
-    user: User;
+    user: UserWithRelations;
     accessToken: string;
     refreshToken: string; // This is the new session ID
   }> {
@@ -225,9 +256,15 @@ export class AuthService {
 
     // Create a new session (which gives a new refresh token)
     const newSession = await this.sessionService.createSession(user.id);
+    const permissions = user.role?.permissions.map(p => p.name) || [];
 
     // Create a new access token
-    const accessToken = this.jwtService.generateAccessToken(user);
+    const accessToken = this.jwtService.generateAccessToken({
+      id: user.id,
+      email: user.email,
+      roleId: user.roleId,
+      permissions,
+    });
 
     return {
       user,

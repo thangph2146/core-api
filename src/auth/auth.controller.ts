@@ -91,7 +91,14 @@ export class AuthController {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    const accessToken = this.jwtService.generateAccessToken(user);
+    const permissions = user.role?.permissions.map((p) => p.name) || [];
+    const payload = {
+      id: user.id,
+      email: user.email,
+      roleId: user.roleId,
+      permissions,
+    };
+    const accessToken = this.jwtService.generateAccessToken(payload);
     const session = await this.sessionService.createSession(user.id); // This ID is the refresh token
 
     response.cookie('refreshToken', session.id, {
