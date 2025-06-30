@@ -22,7 +22,7 @@ import {
 import { AuthGuard } from '../auth/auth.guard';
 import { SuperAdminOnly } from '../common/decorators/permissions.decorator';
 
-@Controller('api/permissions')
+@Controller('permissions')
 @UseGuards(AuthGuard)
 @SuperAdminOnly()
 export class PermissionController {
@@ -41,6 +41,11 @@ export class PermissionController {
   @Get('stats')
   async getStats() {
     return this.permissionService.getStats();
+  }
+
+  @Get('options')
+  async getOptions() {
+    return this.permissionService.getOptions();
   }
 
   @Get(':id')

@@ -209,4 +209,42 @@ export class PermissionService {
       deleted,
     };
   }
+
+  async getOptions() {
+    const permissions = await this.prisma.permission.findMany({
+      where: { deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+
+    const groupedPermissions = permissions.reduce(
+      (acc, permission) => {
+        const [groupName] = permission.name.split(':');
+        const capitalizedGroup =
+          groupName.charAt(0).toUpperCase() + groupName.slice(1);
+
+        if (!acc[capitalizedGroup]) {
+          acc[capitalizedGroup] = [];
+        }
+
+        acc[capitalizedGroup].push({
+          value: permission.id,
+          label: permission.name,
+        });
+
+        return acc;
+      },
+      {} as Record<string, { value: number; label: string }[]>,
+    );
+
+    return Object.entries(groupedPermissions).map(([group, options]) => ({
+      group,
+      options,
+    }));
+  }
 }
