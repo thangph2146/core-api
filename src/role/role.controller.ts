@@ -12,12 +12,21 @@ import {
 	HttpStatus,
 	UseGuards,
 } from '@nestjs/common'
+import {
+	ApiTags,
+	ApiOperation,
+	ApiResponse,
+	ApiBearerAuth,
+} from '@nestjs/swagger'
 import { RoleService } from './role.service'
 import {
 	CreateRoleDto,
 	UpdateRoleDto,
 	RoleQueryDto,
 	BulkRoleOperationDto,
+	BulkDeleteResponseDto,
+	BulkRestoreResponseDto,
+	BulkPermanentDeleteResponseDto,
 } from './dto/role.dto'
 import { AuthGuard } from '../auth/auth.guard'
 import {
@@ -25,6 +34,8 @@ import {
 	Public,
 } from '../common/decorators/permissions.decorator'
 
+@ApiTags('Roles')
+@ApiBearerAuth()
 @Controller('roles')
 @UseGuards(AuthGuard)
 export class RoleController {
@@ -55,24 +66,63 @@ export class RoleController {
 		return this.roleService.getRoleOptions()
 	}
 
+	/**
+	 * POST /api/roles/bulk/delete
+	 * Bulk soft delete roles
+	 */
 	@Post('bulk/delete')
 	@HttpCode(HttpStatus.OK)
 	@CrudPermissions.Roles.FullAccess()
-	async bulkDelete(@Body() bulkDto: BulkRoleOperationDto) {
+	@ApiOperation({
+		summary: 'Xóa mềm nhiều vai trò',
+		description: 'Xóa mềm nhiều vai trò dựa trên danh sách ID',
+	})
+	@ApiResponse({
+		status: 200,
+		description: 'Thao tác xóa mềm hàng loạt hoàn tất',
+		type: BulkDeleteResponseDto,
+	})
+	async bulkDelete(@Body() bulkDto: BulkRoleOperationDto): Promise<BulkDeleteResponseDto> {
 		return this.roleService.bulkDelete(bulkDto.roleIds)
 	}
 
+	/**
+	 * POST /api/roles/bulk/restore
+	 * Bulk restore roles
+	 */
 	@Post('bulk/restore')
 	@HttpCode(HttpStatus.OK)
 	@CrudPermissions.Roles.FullAccess()
-	async bulkRestore(@Body() bulkDto: BulkRoleOperationDto) {
+	@ApiOperation({
+		summary: 'Khôi phục nhiều vai trò',
+		description: 'Khôi phục nhiều vai trò đã bị xóa mềm',
+	})
+	@ApiResponse({
+		status: 200,
+		description: 'Thao tác khôi phục hàng loạt hoàn tất',
+		type: BulkRestoreResponseDto,
+	})
+	async bulkRestore(@Body() bulkDto: BulkRoleOperationDto): Promise<BulkRestoreResponseDto> {
 		return this.roleService.bulkRestore(bulkDto.roleIds)
 	}
 
+	/**
+	 * POST /api/roles/bulk/permanent-delete
+	 * Bulk permanent delete roles
+	 */
 	@Post('bulk/permanent-delete')
 	@HttpCode(HttpStatus.OK)
 	@CrudPermissions.Roles.FullAccess()
-	async bulkPermanentDelete(@Body() bulkDto: BulkRoleOperationDto) {
+	@ApiOperation({
+		summary: 'Xóa vĩnh viễn nhiều vai trò',
+		description: 'Xóa vĩnh viễn nhiều vai trò và tất cả dữ liệu liên quan',
+	})
+	@ApiResponse({
+		status: 200,
+		description: 'Thao tác xóa vĩnh viễn hàng loạt hoàn tất',
+		type: BulkPermanentDeleteResponseDto,
+	})
+	async bulkPermanentDelete(@Body() bulkDto: BulkRoleOperationDto): Promise<BulkPermanentDeleteResponseDto> {
 		return this.roleService.bulkPermanentDelete(bulkDto.roleIds)
 	}
 

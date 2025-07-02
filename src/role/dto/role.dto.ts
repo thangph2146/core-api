@@ -160,3 +160,40 @@ export class RoleStatsDto {
   rolesWithUsers: number;
   rolesWithoutUsers: number;
 }
+
+// Bulk operation response DTOs
+export class BulkDeleteResponseDto {
+  success: boolean;
+  deletedCount: number;
+  skippedCount: number;
+  message: string;
+  details?: {
+    deletedIds: number[];
+    skippedIds: number[];
+    errors?: string[];
+  };
+}
+
+export class BulkRestoreResponseDto {
+  success: boolean;
+  restoredCount: number;
+  skippedCount: number;
+  message: string;
+  details?: {
+    restoredIds: number[];
+    skippedIds: number[];
+    errors?: string[];
+  };
+}
+
+export class BulkPermanentDeleteResponseDto {
+  success: boolean;
+  deletedCount: number;
+  skippedCount: number;
+  message: string;
+  details?: {
+    deletedIds: number[];
+    skippedIds: number[];
+    errors?: string[];
+  };
+}

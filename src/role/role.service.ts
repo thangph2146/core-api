@@ -11,6 +11,9 @@ import {
   RoleQueryDto,
   RoleOptionDto,
   RoleStatsDto,
+  BulkDeleteResponseDto,
+  BulkRestoreResponseDto,
+  BulkPermanentDeleteResponseDto,
 } from './dto/role.dto';
 
 @Injectable()
@@ -363,11 +366,27 @@ export class RoleService {
     };
   }
 
-  async bulkDelete(ids: number[]): Promise<{ deletedCount: number }> {
-    // Check if any roles have users
-    const rolesWithUsers = await this.prisma.role.findMany({
+  async bulkDelete(ids: number[]): Promise<BulkDeleteResponseDto> {
+    const deletedIds: number[] = [];
+    const skippedIds: number[] = [];
+    const errors: string[] = [];
+
+    // Check which roles exist and are not deleted
+    const existingRoles = await this.prisma.role.findMany({
       where: {
         id: { in: ids },
+        deletedAt: null,
+      },
+      select: { id: true, name: true },
+    });
+
+    const existingIds = existingRoles.map(r => r.id);
+    const nonExistingIds = ids.filter(id => !existingIds.includes(id));
+
+    // Check if any existing roles have users
+    const rolesWithUsers = await this.prisma.role.findMany({
+      where: {
+        id: { in: existingIds },
         users: {
           some: {
             deletedAt: null,
@@ -377,24 +396,51 @@ export class RoleService {
       select: { id: true, name: true },
     });
 
-    if (rolesWithUsers.length > 0) {
-      const roleNames = rolesWithUsers.map((r) => r.name).join(', ');
-      throw new ConflictException(
-        `Cannot delete roles that have assigned users: ${roleNames}`,
-      );
+    const roleIdsWithUsers = rolesWithUsers.map(r => r.id);
+    const deletableIds = existingIds.filter(id => !roleIdsWithUsers.includes(id));
+
+    // Add skipped roles with reasons
+    if (nonExistingIds.length > 0) {
+      skippedIds.push(...nonExistingIds);
+      errors.push(`Vai trò không tồn tại hoặc đã bị xóa: ID ${nonExistingIds.join(', ')}`);
     }
 
-    const result = await this.prisma.role.updateMany({
-      where: {
-        id: { in: ids },
-        deletedAt: null,
-      },
-      data: {
-        deletedAt: new Date(),
-      },
-    });
+    if (roleIdsWithUsers.length > 0) {
+      skippedIds.push(...roleIdsWithUsers);
+      const roleNames = rolesWithUsers.map(r => r.name).join(', ');
+      errors.push(`Không thể xóa vai trò đang được sử dụng: ${roleNames}`);
+    }
 
-    return { deletedCount: result.count };
+    // Perform bulk delete for deletable roles
+    if (deletableIds.length > 0) {
+      await this.prisma.role.updateMany({
+        where: {
+          id: { in: deletableIds },
+          deletedAt: null,
+        },
+        data: {
+          deletedAt: new Date(),
+        },
+      });
+      deletedIds.push(...deletableIds);
+    }
+
+    const success = deletedIds.length > 0;
+    const message = success 
+      ? `Đã xóa thành công ${deletedIds.length} vai trò${skippedIds.length > 0 ? `, bỏ qua ${skippedIds.length} vai trò` : ''}`
+      : 'Không có vai trò nào được xóa';
+
+    return {
+      success,
+      deletedCount: deletedIds.length,
+      skippedCount: skippedIds.length,
+      message,
+      details: {
+        deletedIds,
+        skippedIds,
+        errors: errors.length > 0 ? errors : undefined,
+      },
+    };
   }
 
   async restore(id: number): Promise<Role> {
@@ -427,19 +473,60 @@ export class RoleService {
     });
   }
 
-  async bulkRestore(ids: number[]): Promise<{ restoredCount: number }> {
-    const result = await this.prisma.role.updateMany({
+  async bulkRestore(ids: number[]): Promise<BulkRestoreResponseDto> {
+    const restoredIds: number[] = [];
+    const skippedIds: number[] = [];
+    const errors: string[] = [];
+
+    // Check which roles exist and are deleted
+    const deletedRoles = await this.prisma.role.findMany({
       where: {
         id: { in: ids },
         deletedAt: { not: null },
       },
-      data: {
-        deletedAt: null,
-        updatedAt: new Date(),
-      },
+      select: { id: true, name: true },
     });
 
-    return { restoredCount: result.count };
+    const deletedRoleIds = deletedRoles.map(r => r.id);
+    const nonDeletedIds = ids.filter(id => !deletedRoleIds.includes(id));
+
+    // Add skipped roles with reasons
+    if (nonDeletedIds.length > 0) {
+      skippedIds.push(...nonDeletedIds);
+      errors.push(`Vai trò không tồn tại hoặc chưa bị xóa: ID ${nonDeletedIds.join(', ')}`);
+    }
+
+    // Perform bulk restore for restorable roles
+    if (deletedRoleIds.length > 0) {
+      await this.prisma.role.updateMany({
+        where: {
+          id: { in: deletedRoleIds },
+          deletedAt: { not: null },
+        },
+        data: {
+          deletedAt: null,
+          updatedAt: new Date(),
+        },
+      });
+      restoredIds.push(...deletedRoleIds);
+    }
+
+    const success = restoredIds.length > 0;
+    const message = success 
+      ? `Đã khôi phục thành công ${restoredIds.length} vai trò${skippedIds.length > 0 ? `, bỏ qua ${skippedIds.length} vai trò` : ''}`
+      : 'Không có vai trò nào được khôi phục';
+
+    return {
+      success,
+      restoredCount: restoredIds.length,
+      skippedCount: skippedIds.length,
+      message,
+      details: {
+        restoredIds,
+        skippedIds,
+        errors: errors.length > 0 ? errors : undefined,
+      },
+    };
   }
   async permanentDelete(id: number): Promise<void> {
     const role = await this.prisma.role.findUnique({ where: { id } });
@@ -469,26 +556,74 @@ export class RoleService {
     
     await this.prisma.role.delete({ where: { id } });
   }
-  async bulkPermanentDelete(ids: number[]): Promise<{ deletedCount: number }> {
-    // Add a check to ensure roles are not assigned to users before deletion
-    const rolesWithUsersCount = await this.prisma.user.count({
-      where: {
-        roleId: { in: ids },
-      },
-    });
+  async bulkPermanentDelete(ids: number[]): Promise<BulkPermanentDeleteResponseDto> {
+    const deletedIds: number[] = [];
+    const skippedIds: number[] = [];
+    const errors: string[] = [];
 
-    if (rolesWithUsersCount > 0) {
-      throw new ConflictException(
-        'One or more roles are still assigned to users and cannot be permanently deleted.',
-      );
-    }
-
-    const result = await this.prisma.role.deleteMany({
+    // Check which roles exist and are soft-deleted
+    const softDeletedRoles = await this.prisma.role.findMany({
       where: {
         id: { in: ids },
-        deletedAt: { not: null }, // Ensure we only delete soft-deleted roles
+        deletedAt: { not: null },
       },
+      select: { id: true, name: true },
     });
-    return { deletedCount: result.count };
+
+    const softDeletedRoleIds = softDeletedRoles.map(r => r.id);
+    const nonSoftDeletedIds = ids.filter(id => !softDeletedRoleIds.includes(id));
+
+    // Check if any soft-deleted roles have users
+    const rolesWithUsers = await this.prisma.user.findMany({
+      where: {
+        roleId: { in: softDeletedRoleIds },
+      },
+      select: { roleId: true },
+      distinct: ['roleId'],
+    });
+
+    const roleIdsWithUsers = rolesWithUsers
+      .map(u => u.roleId)
+      .filter((id): id is number => id !== null);
+    const deletableIds = softDeletedRoleIds.filter(id => !roleIdsWithUsers.includes(id));
+
+    // Add skipped roles with reasons
+    if (nonSoftDeletedIds.length > 0) {
+      skippedIds.push(...nonSoftDeletedIds);
+      errors.push(`Vai trò không tồn tại hoặc chưa bị xóa mềm: ID ${nonSoftDeletedIds.join(', ')}`);
+    }
+
+    if (roleIdsWithUsers.length > 0) {
+      skippedIds.push(...roleIdsWithUsers);
+      errors.push(`Không thể xóa vĩnh viễn vai trò đang được sử dụng: ID ${roleIdsWithUsers.join(', ')}`);
+    }
+
+    // Perform bulk permanent delete for deletable roles
+    if (deletableIds.length > 0) {
+      await this.prisma.role.deleteMany({
+        where: {
+          id: { in: deletableIds },
+          deletedAt: { not: null },
+        },
+      });
+      deletedIds.push(...deletableIds);
+    }
+
+    const success = deletedIds.length > 0;
+    const message = success 
+      ? `Đã xóa vĩnh viễn thành công ${deletedIds.length} vai trò${skippedIds.length > 0 ? `, bỏ qua ${skippedIds.length} vai trò` : ''}`
+      : 'Không có vai trò nào được xóa vĩnh viễn';
+
+    return {
+      success,
+      deletedCount: deletedIds.length,
+      skippedCount: skippedIds.length,
+      message,
+      details: {
+        deletedIds,
+        skippedIds,
+        errors: errors.length > 0 ? errors : undefined,
+      },
+    };
   }
 }
