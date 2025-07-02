@@ -63,7 +63,6 @@ export enum UserSortBy {
   UPDATED_AT = 'updatedAt',
   DELETED_AT = 'deletedAt', // Added for sorting deleted users
   ROLE_ID = 'roleId',
-  EMAIL_VERIFIED = 'emailVerified',
 }
 
 export enum AdminUserAction {
@@ -217,11 +216,6 @@ export class CreateUserDto {
   @IsPositive({ message: 'Role ID phải lớn hơn 0' })
   @Type(() => Number)
   roleId?: number;
-
-  @ApiPropertyOptional({ description: 'Ngày xác thực email (ISO string)' })
-  @IsOptional()
-  @IsDateString({}, { message: 'Email verified phải là ngày hợp lệ' })
-  emailVerified?: string;
 
   @ApiPropertyOptional({ description: 'Thông tin profile chi tiết' })
   @IsOptional()
@@ -433,6 +427,9 @@ export class UserQueryDto {
   })
   @IsOptional()
   @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') {
+      return undefined;
+    }
     if (typeof value === 'string') {
       return value.toLowerCase() === 'true';
     }
@@ -690,9 +687,6 @@ export class UserResponseDto {
   @ApiPropertyOptional({ description: 'URL ảnh profile (OAuth)' })
   image: string | null;
 
-  @ApiPropertyOptional({ description: 'Ngày xác thực email' })
-  emailVerified: Date | null;
-
   @ApiPropertyOptional({ description: 'ID vai trò' })
   roleId: number | null;
 
@@ -786,11 +780,14 @@ export class UserStatsResponseDto {
   @ApiProperty({ description: 'Số người dùng đã xóa' })
   deleted: number;
 
-  @ApiProperty({ description: 'Số người dùng đã xác thực email' })
-  verified: number;
+  @ApiProperty({ description: 'Số người dùng có vai trò' })
+  usersWithRoles: number;
 
-  @ApiProperty({ description: 'Số người dùng chưa xác thực email' })
-  unverified: number;
+  @ApiProperty({ description: 'Số người dùng không có vai trò' })
+  usersWithoutRoles: number;
+
+  @ApiProperty({ description: 'Số người dùng tạo gần đây (30 ngày)' })
+  recentUsers: number;
 
   @ApiPropertyOptional({
     description: 'Thống kê theo vai trò (role_1: 10, role_2: 5)',

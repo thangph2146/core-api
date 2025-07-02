@@ -16,7 +16,6 @@ export interface IUser {
   name?: string;
   image?: string;
   avatarUrl?: string;
-  emailVerified?: Date;
   provider?: string;
   providerId?: string;
   roleId?: number;
@@ -39,7 +38,6 @@ export interface CreateUserDto {
   avatarUrl?: string;
   provider?: string;
   providerId?: string;
-  emailVerified?: Date;
   bio?: string;
   socialLinks?: any;
 }
@@ -49,7 +47,6 @@ export interface UpdateUserDto {
   name?: string;
   image?: string;
   avatarUrl?: string;
-  emailVerified?: Date;
   bio?: string;
   socialLinks?: any;
 }
@@ -63,7 +60,6 @@ export interface GoogleUserDto {
   email: string;
   name?: string;
   image?: string;
-  emailVerified?: Date;
   provider: string;
   providerId: string;
 }

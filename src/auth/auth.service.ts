@@ -209,7 +209,6 @@ export class AuthService {
       email: googleUserDto.email,
       name: googleUserDto.name,
       image: googleUserDto.image,
-      emailVerified: googleUserDto.emailVerified ? new Date() : undefined,
       provider: 'google',
       providerId: googleUserDto.providerId,
     });

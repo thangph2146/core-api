@@ -85,7 +85,6 @@ interface UserFilterOptions {
   roleId?: number;
   includeDeleted?: boolean;
   deleted?: boolean;
-  verified?: boolean;
   dateFrom?: string;
   dateTo?: string;
 }
@@ -524,7 +523,6 @@ export class UserService {
       name: user.name,
       avatarUrl: user.avatarUrl,
       image: user.image,
-      emailVerified: user.emailVerified,
       roleId: user.roleId,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -558,9 +556,6 @@ export class UserService {
 
     // ROLE FILTER - Lọc theo role
     this.applyRoleFilter(where, filters.roleId);
-
-    // EMAIL VERIFICATION FILTER - Lọc theo trạng thái verify
-    this.applyVerificationFilter(where, filters.verified);
 
     // DATE RANGE FILTER - Lọc theo khoảng thời gian
     this.applyDateRangeFilter(where, filters.dateFrom, filters.dateTo);
@@ -616,20 +611,6 @@ export class UserService {
   }
 
   /**
-   * Apply email verification filter
-   */
-  private applyVerificationFilter(
-    where: Prisma.UserWhereInput,
-    verified?: boolean,
-  ): void {
-    if (verified === true) {
-      where.emailVerified = { not: null };
-    } else if (verified === false) {
-      where.emailVerified = null;
-    }
-  }
-
-  /**
    * Apply date range filter
    */
   private applyDateRangeFilter(
@@ -665,7 +646,6 @@ export class UserService {
       'updatedAt',
       'deletedAt',
       'roleId',
-      'emailVerified',
       'avatarUrl',
     ];
 
@@ -700,7 +680,6 @@ export class UserService {
         search: query.search,
         roleId: query.roleId,
         deleted: query.deleted,
-        verified: query.verified,
         sortBy: query.sortBy,
         sortOrder: query.sortOrder,
       }),
@@ -803,7 +782,6 @@ export class UserService {
         limit = DEFAULT_PAGE_SIZE,
         search,
         roleId,
-        verified,
         dateFrom,
         dateTo,
         sortBy,
@@ -814,7 +792,6 @@ export class UserService {
       const filters: UserFilterOptions = {
         search,
         roleId,
-        verified,
         dateFrom,
         dateTo,
         deleted: true, // FORCE chỉ deleted users
@@ -842,6 +819,8 @@ export class UserService {
         }),
         this.prisma.user.count({ where }),
       ]);
+
+      this.logger.debug(`[FIND_DELETED] Found ${deletedUsers.length} users, total: ${total}`);
 
       // 6. FORMAT RESPONSE
       const formattedUsers = deletedUsers.map((user) =>
@@ -972,7 +951,6 @@ export class UserService {
         totalUsers,
         activeUsers,
         deletedUsers,
-        verifiedUsers,
         usersWithRoles,
         recentUsers,
       ] = await Promise.all([
@@ -984,14 +962,6 @@ export class UserService {
 
         // Users đã xóa
         this.prisma.user.count({ where: { deletedAt: { not: null } } }),
-
-        // Users đã verify email
-        this.prisma.user.count({
-          where: {
-            emailVerified: { not: null },
-            deletedAt: null,
-          },
-        }),
 
         // Users có role
         this.prisma.user.count({
@@ -1030,8 +1000,6 @@ export class UserService {
         total: totalUsers,
         active: activeUsers,
         deleted: deletedUsers,
-        verified: verifiedUsers,
-        unverified: activeUsers - verifiedUsers,
         usersWithRoles,
         usersWithoutRoles: activeUsers - usersWithRoles,
         recentUsers,
@@ -1106,9 +1074,6 @@ export class UserService {
           : undefined,
         avatarUrl: createUserDto.avatarUrl,
         image: createUserDto.image,
-        emailVerified: createUserDto.emailVerified
-          ? new Date(createUserDto.emailVerified)
-          : null,
         profile: createUserDto.profile
           ? { create: createUserDto.profile }
           : undefined,
@@ -1909,12 +1874,6 @@ export class UserService {
           break;
         case AdminUserAction.ACTIVATE:
           updateData = { deletedAt: null };
-          break;
-        case AdminUserAction.VERIFY_EMAIL:
-          updateData = { emailVerified: new Date() };
-          break;
-        case AdminUserAction.UNVERIFY_EMAIL:
-          updateData = { emailVerified: null };
           break;
         case AdminUserAction.FORCE_PASSWORD_RESET:
           const resetToken = this.generateSecureToken();

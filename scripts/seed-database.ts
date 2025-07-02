@@ -184,7 +184,6 @@ async function main() {
 			email: 'thang.ph2146@gmail.com',
 			name: 'Phạm Hoàng Thắng',
 			hashedPassword: hashedPassword,
-			emailVerified: new Date(),
 			roleId: superAdminRole.id,
 			profile: {
 				create: {
@@ -219,7 +218,6 @@ async function main() {
 					email: email,
 					name: `${firstName} ${lastName}`,
 					hashedPassword: testPassword,
-					emailVerified: new Date(),
 					roleId: clientRole.id, // Assign client role to test users
 					profile: {
 						create: {

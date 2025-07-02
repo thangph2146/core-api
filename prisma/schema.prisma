@@ -100,7 +100,6 @@ model User {
   name                       String?
   avatarUrl                  String?
   image                      String?
-  emailVerified              DateTime?
   hashedPassword             String?
   roleId                     Int?
   createdAt                  DateTime            @default(now())
