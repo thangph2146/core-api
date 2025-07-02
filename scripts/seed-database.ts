@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { PERMISSIONS } from '../src/common/constants/permissions.constants';
+import { PERMISSIONS, ALL_PERMISSIONS, DEFAULT_ROLES } from '../src/common/constants/permissions.constants';
 
 const prisma = new PrismaClient();
 
@@ -58,7 +58,7 @@ async function main() {
 	const permissionsToCreate = Object.values(PERMISSIONS)
 		.flatMap(group => Object.values(group))
 		.map(permissionName => {
-			const [resource, action] = permissionName.split(':');
+			const [resource, action] = (permissionName as string).split(':');
 			const resourceTitle = resource
 				.replace(/_/g, ' ')
 				.replace(/\b\w/g, l => l.toUpperCase());
@@ -70,7 +70,7 @@ async function main() {
 			}
 
 			return {
-				name: permissionName,
+				name: permissionName as string,
 				description: description,
 				metaTitle: `Quyền ${actionTitle} ${resourceTitle}`,
 			};
