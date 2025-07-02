@@ -11,6 +11,11 @@ export const PERMISSIONS = {
     UPDATE: 'admin:update',
     DELETE: 'admin:delete',
     RESTORE: 'admin:restore',
+    VIEW_DELETED: 'admin:view_deleted',
+    PERMANENT_DELETE: 'admin:permanent_delete',
+    BULK_DELETE: 'admin:bulk_delete',
+    BULK_RESTORE: 'admin:bulk_restore',
+    BULK_PERMANENT_DELETE: 'admin:bulk_permanent_delete',
     FULL_ACCESS: 'admin:full_access', // Chỉ dành cho SUPER_ADMIN
   },
 
@@ -36,6 +41,11 @@ export const PERMISSIONS = {
     UPDATE: 'roles:update',
     DELETE: 'roles:delete',
     RESTORE: 'roles:restore',
+    VIEW_DELETED: 'roles:view_deleted',
+    PERMANENT_DELETE: 'roles:permanent_delete',
+    BULK_DELETE: 'roles:bulk_delete',
+    BULK_RESTORE: 'roles:bulk_restore',
+    BULK_PERMANENT_DELETE: 'roles:bulk_permanent_delete',
     FULL_ACCESS: 'roles:full_access',
   },
 
@@ -46,6 +56,12 @@ export const PERMISSIONS = {
     UPDATE: 'permissions:update',
     DELETE: 'permissions:delete',
     RESTORE: 'permissions:restore',
+    VIEW_DELETED: 'permissions:view_deleted',
+    PERMANENT_DELETE: 'permissions:permanent_delete',
+    BULK_DELETE: 'permissions:bulk_delete',
+    BULK_RESTORE: 'permissions:bulk_restore',
+    BULK_PERMANENT_DELETE: 'permissions:bulk_permanent_delete',
+    FULL_ACCESS: 'permissions:full_access',
   },
 
   // Blog Management Permissions
@@ -55,6 +71,13 @@ export const PERMISSIONS = {
     UPDATE: 'blogs:update',
     DELETE: 'blogs:delete',
     RESTORE: 'blogs:restore',
+    VIEW_DELETED: 'blogs:view_deleted',
+    PERMANENT_DELETE: 'blogs:permanent_delete',
+    BULK_DELETE: 'blogs:bulk_delete',
+    BULK_RESTORE: 'blogs:bulk_restore',
+    BULK_PERMANENT_DELETE: 'blogs:bulk_permanent_delete',
+    LIKE: 'blogs:like',
+    BOOKMARK: 'blogs:bookmark',
     FULL_ACCESS: 'blogs:full_access',
   },
 
@@ -65,6 +88,11 @@ export const PERMISSIONS = {
     UPDATE: 'content_types:update',
     DELETE: 'content_types:delete',
     RESTORE: 'content_types:restore',
+    VIEW_DELETED: 'content_types:view_deleted',
+    PERMANENT_DELETE: 'content_types:permanent_delete',
+    BULK_DELETE: 'content_types:bulk_delete',
+    BULK_RESTORE: 'content_types:bulk_restore',
+    BULK_PERMANENT_DELETE: 'content_types:bulk_permanent_delete',
     FULL_ACCESS: 'content_types:full_access',
   },
 
@@ -75,6 +103,12 @@ export const PERMISSIONS = {
     UPDATE: 'categories:update',
     DELETE: 'categories:delete',
     RESTORE: 'categories:restore',
+    VIEW_DELETED: 'categories:view_deleted',
+    PERMANENT_DELETE: 'categories:permanent_delete',
+    BULK_DELETE: 'categories:bulk_delete',
+    BULK_RESTORE: 'categories:bulk_restore',
+    BULK_PERMANENT_DELETE: 'categories:bulk_permanent_delete',
+    FULL_ACCESS: 'categories:full_access',
   },
 
   // Tag Management Permissions
@@ -84,6 +118,12 @@ export const PERMISSIONS = {
     UPDATE: 'tags:update',
     DELETE: 'tags:delete',
     RESTORE: 'tags:restore',
+    VIEW_DELETED: 'tags:view_deleted',
+    PERMANENT_DELETE: 'tags:permanent_delete',
+    BULK_DELETE: 'tags:bulk_delete',
+    BULK_RESTORE: 'tags:bulk_restore',
+    BULK_PERMANENT_DELETE: 'tags:bulk_permanent_delete',
+    FULL_ACCESS: 'tags:full_access',
   },
 
   // Media Management Permissions
@@ -93,16 +133,12 @@ export const PERMISSIONS = {
     UPDATE: 'media:update',
     DELETE: 'media:delete',
     RESTORE: 'media:restore',
+    VIEW_DELETED: 'media:view_deleted',
+    PERMANENT_DELETE: 'media:permanent_delete',
+    BULK_DELETE: 'media:bulk_delete',
+    BULK_RESTORE: 'media:bulk_restore',
+    BULK_PERMANENT_DELETE: 'media:bulk_permanent_delete',
     FULL_ACCESS: 'media:full_access',
-  },
-
-  // Comment Management Permissions
-  COMMENTS: {
-    CREATE: 'comments:create',
-    READ: 'comments:read',
-    UPDATE: 'comments:update',
-    DELETE: 'comments:delete',
-    RESTORE: 'comments:restore',
   },
 
   // Recruitment Management Permissions
@@ -112,6 +148,12 @@ export const PERMISSIONS = {
     UPDATE: 'recruitment:update',
     DELETE: 'recruitment:delete',
     RESTORE: 'recruitment:restore',
+    VIEW_DELETED: 'recruitment:view_deleted',
+    PERMANENT_DELETE: 'recruitment:permanent_delete',
+    BULK_DELETE: 'recruitment:bulk_delete',
+    BULK_RESTORE: 'recruitment:bulk_restore',
+    BULK_PERMANENT_DELETE: 'recruitment:bulk_permanent_delete',
+    APPLY: 'recruitment:apply',
     FULL_ACCESS: 'recruitment:full_access',
   },
 
@@ -122,6 +164,12 @@ export const PERMISSIONS = {
     UPDATE: 'services:update',
     DELETE: 'services:delete',
     RESTORE: 'services:restore',
+    VIEW_DELETED: 'services:view_deleted',
+    PERMANENT_DELETE: 'services:permanent_delete',
+    BULK_DELETE: 'services:bulk_delete',
+    BULK_RESTORE: 'services:bulk_restore',
+    BULK_PERMANENT_DELETE: 'services:bulk_permanent_delete',
+    FULL_ACCESS: 'services:full_access',
   },
 
   // Contact Management Permissions
@@ -131,6 +179,27 @@ export const PERMISSIONS = {
     UPDATE: 'contacts:update',
     DELETE: 'contacts:delete',
     RESTORE: 'contacts:restore',
+    VIEW_DELETED: 'contacts:view_deleted',
+    PERMANENT_DELETE: 'contacts:permanent_delete',
+    BULK_DELETE: 'contacts:bulk_delete',
+    BULK_RESTORE: 'contacts:bulk_restore',
+    BULK_PERMANENT_DELETE: 'contacts:bulk_permanent_delete',
+    FULL_ACCESS: 'contacts:full_access',
+  },
+
+  // Comment Management Permissions
+  COMMENTS: {
+    CREATE: 'comments:create',
+    READ: 'comments:read',
+    UPDATE: 'comments:update',
+    DELETE: 'comments:delete',
+    RESTORE: 'comments:restore',
+    VIEW_DELETED: 'comments:view_deleted',
+    PERMANENT_DELETE: 'comments:permanent_delete',
+    BULK_DELETE: 'comments:bulk_delete',
+    BULK_RESTORE: 'comments:bulk_restore',
+    BULK_PERMANENT_DELETE: 'comments:bulk_permanent_delete',
+    FULL_ACCESS: 'comments:full_access',
   },
 
   // Analytics & Reports Permissions
@@ -140,6 +209,12 @@ export const PERMISSIONS = {
     UPDATE: 'analytics:update',
     DELETE: 'analytics:delete',
     RESTORE: 'analytics:restore',
+    VIEW_DELETED: 'analytics:view_deleted',
+    PERMANENT_DELETE: 'analytics:permanent_delete',
+    BULK_DELETE: 'analytics:bulk_delete',
+    BULK_RESTORE: 'analytics:bulk_restore',
+    BULK_PERMANENT_DELETE: 'analytics:bulk_permanent_delete',
+    FULL_ACCESS: 'analytics:full_access',
   },
 
   // Settings Management Permissions
@@ -149,6 +224,11 @@ export const PERMISSIONS = {
     UPDATE: 'settings:update',
     DELETE: 'settings:delete',
     RESTORE: 'settings:restore',
+    VIEW_DELETED: 'settings:view_deleted',
+    PERMANENT_DELETE: 'settings:permanent_delete',
+    BULK_DELETE: 'settings:bulk_delete',
+    BULK_RESTORE: 'settings:bulk_restore',
+    BULK_PERMANENT_DELETE: 'settings:bulk_permanent_delete',
     FULL_ACCESS: 'settings:full_access',
   },
 } as const;

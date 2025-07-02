@@ -727,7 +727,6 @@ export class UserService {
         limit = DEFAULT_PAGE_SIZE,
         search,
         roleId,
-        verified,
         dateFrom,
         dateTo,
         sortBy,
@@ -738,7 +737,6 @@ export class UserService {
       const filters: UserFilterOptions = {
         search,
         roleId,
-        verified,
         dateFrom,
         dateTo,
         includeDeleted: false, // FORCE exclude deleted users

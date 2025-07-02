@@ -1,6 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-import { PERMISSIONS, ALL_PERMISSIONS, DEFAULT_ROLES } from '../src/common/constants/permissions.constants';
+import { faker } from '@faker-js/faker';
+import { PERMISSIONS } from '../src/common/constants/permissions.constants';
 
 const prisma = new PrismaClient();
 
@@ -150,7 +151,27 @@ async function main() {
 		},
 	});
 
-	console.log(`✅ Đã tạo 4 roles: Super Admin, Admin, Editor, HR Manager`);
+	// Create Client Role
+	const clientRole = await prisma.role.create({
+		data: {
+			name: 'Client',
+			description: 'Người dùng cuối có quyền tương tác với các tính năng công khai.',
+			permissions: {
+				connect: [
+					{ name: PERMISSIONS.BLOGS.READ },
+					{ name: PERMISSIONS.BLOGS.LIKE },
+					{ name: PERMISSIONS.BLOGS.BOOKMARK },
+					{ name: PERMISSIONS.COMMENTS.CREATE },
+					{ name: PERMISSIONS.COMMENTS.READ },
+					{ name: PERMISSIONS.COMMENTS.UPDATE },
+					{ name: PERMISSIONS.COMMENTS.DELETE },
+					{ name: PERMISSIONS.RECRUITMENT.APPLY },
+				],
+			},
+		},
+	});
+
+	console.log(`✅ Đã tạo 5 roles: Super Admin, Admin, Editor, HR Manager, Client`);
 
 	console.log('👤 Tạo User chính...');
 
@@ -180,15 +201,54 @@ async function main() {
 
 	console.log(`✅ Đã tạo user chính: ${mainUser.email}`);
 
+	console.log('👤 Tạo 20 user test...');
+	const testUsers: Prisma.UserCreateArgs[] = [];
+	const testPassword = await bcrypt.hash('password123', 10);
+
+	// Use the 'editorRole' created earlier, no need to query again.
+	if (!editorRole) {
+		console.error('❌ Không tìm thấy vai trò "Editor". Bỏ qua việc tạo người dùng thử nghiệm.');
+	} else {
+		for (let i = 0; i < 20; i++) {
+			const firstName = faker.person.firstName();
+			const lastName = faker.person.lastName();
+			const email = faker.internet.email({ firstName, lastName, provider: 'phgroup.dev' });
+
+			testUsers.push({
+				data: {
+					email: email,
+					name: `${firstName} ${lastName}`,
+					hashedPassword: testPassword,
+					emailVerified: new Date(),
+					roleId: clientRole.id, // Assign client role to test users
+					profile: {
+						create: {
+							bio: faker.person.bio(),
+						},
+					},
+				},
+			});
+		}
+		
+		for (const userData of testUsers) {
+			await prisma.user.create(userData);
+		}
+
+		console.log('✅ Đã tạo 20 user test.');
+	}
+
 	console.log('🌟 Hoàn thành seed database!');
 	console.log('\n📋 Tóm tắt dữ liệu đã tạo:');
 	console.log(`- ${permissions.count} Permissions`);
-	console.log(`- 4 Roles (Super Admin, Admin, Editor, HR Manager)`);
-	console.log(`- 1 User (Super Admin)`);
+	console.log(`- 5 Roles (Super Admin, Admin, Editor, HR Manager, Client)`);
+	console.log(`- 21 Users (1 Super Admin + 20 Test Users)`);
 	console.log('\n🔑 Thông tin đăng nhập:');
 	console.log('🎯 SUPER ADMIN:');
 	console.log('  📧 Email: thang.ph2146@gmail.com');
 	console.log('  🔒 Password: RachelCu.26112020');
+	console.log('\n🎯 TEST USERS:');
+	console.log('  📧 Email: testuser1@phgroup.com - testuser20@phgroup.com');
+	console.log('  🔒 Password: password123');
 }
 
 main()
