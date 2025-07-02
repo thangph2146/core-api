@@ -19,6 +19,8 @@ import {
   BulkDeleteResponseDto,
   BulkRestoreResponseDto,
   PermissionGroupDto,
+  PermissionOptionDto,
+  BulkPermanentDeleteResponseDto,
 } from './dto/permission.dto';
 
 // =============================================================================
@@ -70,7 +72,8 @@ export class PermissionService {
       const where: Prisma.PermissionWhereInput = {};
 
       // Handle deleted filter
-      if (deleted) {
+      const deletedBool = deleted === true;
+      if (deletedBool) {
         where.deletedAt = { not: null };
       } else if (includeDeleted) {
         where.deletedAt = undefined;
@@ -88,6 +91,9 @@ export class PermissionService {
           { metaDescription: { contains: searchTerm, mode: 'insensitive' } },
         ];
       }
+
+      // Không bao giờ show admin:full_access
+      where.name = { not: 'admin:full_access' };
 
       // Define sortable fields
       const validSortFields = [
@@ -116,8 +122,7 @@ export class PermissionService {
       this.logger.debug(`Found ${permissions.length} permissions out of ${total} total`);
 
       return {
-        success: true,
-        data: permissions.map(this.formatPermissionResponse),
+        data: permissions.map(permission => this.formatPermissionResponse(permission)),
         meta: {
           total,
           page: pageNum,
@@ -339,9 +344,9 @@ export class PermissionService {
       ]);
 
       return {
-        total,
-        active,
-        deleted,
+        totalPermissions: total,
+        activePermissions: active,
+        deletedPermissions: deleted,
       };
     } catch (error) {
       this.logger.error(`Error getting permission stats: ${error.message}`, error.stack);
@@ -357,7 +362,7 @@ export class PermissionService {
 
     try {
       const permissions = await this.prisma.permission.findMany({
-        where: { deletedAt: null },
+        where: { deletedAt: null, name: { not: 'admin:full_access' } },
         select: {
           id: true,
           name: true,
@@ -412,7 +417,8 @@ export class PermissionService {
     }
 
     const deletedIds: number[] = [];
-    const failedIds: number[] = [];
+    const skippedIds: number[] = [];
+    const errors: string[] = [];
 
     for (const id of permissionIds) {
       try {
@@ -420,15 +426,21 @@ export class PermissionService {
         deletedIds.push(id);
       } catch (error) {
         this.logger.warn(`Failed to delete permission ${id}: ${error.message}`);
-        failedIds.push(id);
+        skippedIds.push(id);
+        errors.push(`Permission ID ${id}: ${error.message}`);
       }
     }
 
     return {
+      success: true,
       deletedCount: deletedIds.length,
-      deletedIds,
-      failedIds,
+      skippedCount: skippedIds.length,
       message: `Đã xóa ${deletedIds.length}/${permissionIds.length} permissions`,
+      details: {
+        deletedIds,
+        skippedIds,
+        errors: errors.length > 0 ? errors : undefined,
+      },
     };
   }
 
@@ -443,7 +455,8 @@ export class PermissionService {
     }
 
     const restoredIds: number[] = [];
-    const failedIds: number[] = [];
+    const skippedIds: number[] = [];
+    const errors: string[] = [];
 
     for (const id of permissionIds) {
       try {
@@ -451,15 +464,59 @@ export class PermissionService {
         restoredIds.push(id);
       } catch (error) {
         this.logger.warn(`Failed to restore permission ${id}: ${error.message}`);
-        failedIds.push(id);
+        skippedIds.push(id);
+        errors.push(`Permission ID ${id}: ${error.message}`);
       }
     }
 
     return {
+      success: true,
       restoredCount: restoredIds.length,
-      restoredIds,
-      failedIds,
+      skippedCount: skippedIds.length,
       message: `Đã khôi phục ${restoredIds.length}/${permissionIds.length} permissions`,
+      details: {
+        restoredIds,
+        skippedIds,
+        errors: errors.length > 0 ? errors : undefined,
+      },
+    };
+  }
+
+  /**
+   * Bulk permanent delete permissions
+   */
+  async bulkPermanentDelete(permissionIds: number[]): Promise<BulkPermanentDeleteResponseDto> {
+    this.logger.log(`Bulk permanent deleting ${permissionIds.length} permissions`);
+
+    if (permissionIds.length > MAX_BULK_OPERATION_SIZE) {
+      throw new BadRequestException(`Không thể xóa vĩnh viễn quá ${MAX_BULK_OPERATION_SIZE} permissions cùng lúc`);
+    }
+
+    const deletedIds: number[] = [];
+    const skippedIds: number[] = [];
+    const errors: string[] = [];
+
+    for (const id of permissionIds) {
+      try {
+        await this.permanentDelete(id);
+        deletedIds.push(id);
+      } catch (error) {
+        this.logger.warn(`Failed to permanently delete permission ${id}: ${error.message}`);
+        skippedIds.push(id);
+        errors.push(`Permission ID ${id}: ${error.message}`);
+      }
+    }
+
+    return {
+      success: true,
+      deletedCount: deletedIds.length,
+      skippedCount: skippedIds.length,
+      message: `Đã xóa vĩnh viễn ${deletedIds.length}/${permissionIds.length} permissions`,
+      details: {
+        deletedIds,
+        skippedIds,
+        errors: errors.length > 0 ? errors : undefined,
+      },
     };
   }
 
@@ -474,12 +531,12 @@ export class PermissionService {
     return {
       id: permission.id,
       name: permission.name,
-      description: permission.description,
+      description: permission.description || undefined,
       createdAt: permission.createdAt,
       updatedAt: permission.updatedAt,
-      deletedAt: permission.deletedAt,
-      metaTitle: permission.metaTitle,
-      metaDescription: permission.metaDescription,
+      deletedAt: permission.deletedAt || undefined,
+      metaTitle: permission.metaTitle || undefined,
+      metaDescription: permission.metaDescription || undefined,
     };
   }
 
@@ -496,5 +553,89 @@ export class PermissionService {
     }
 
     return permission;
+  }
+
+  /**
+   * Lấy thống kê permissions
+   */
+  async getPermissionStats(deleted: boolean = false): Promise<PermissionStatsDto> {
+    const whereCondition = deleted
+      ? { deletedAt: { not: null } }
+      : { deletedAt: null };
+
+    const [totalPermissions, activePermissions, deletedPermissions] = await Promise.all([
+      this.prisma.permission.count(),
+      this.prisma.permission.count({ where: { deletedAt: null } }),
+      this.prisma.permission.count({ where: { deletedAt: { not: null } } }),
+    ]);
+
+    return {
+      totalPermissions,
+      activePermissions,
+      deletedPermissions,
+    };
+  }
+
+  /**
+   * Lấy options permissions
+   */
+  async getPermissionOptions(): Promise<PermissionOptionDto[]> {
+    const permissions = await this.prisma.permission.findMany({
+      where: { deletedAt: null, name: { not: 'admin:full_access' } },
+      select: {
+        id: true,
+        name: true,
+      },
+      orderBy: {
+        name: 'asc',
+      },
+    });
+
+    return permissions.map(permission => ({
+      value: permission.id,
+      label: permission.name,
+    }));
+  }
+
+  /**
+   * Xóa vĩnh viễn permission
+   */
+  async permanentDelete(id: number): Promise<void> {
+    this.logger.log(`Permanently deleting permission ID: ${id}`);
+
+    try {
+      const permission = await this.prisma.permission.findFirst({
+        where: { id },
+      });
+
+      if (!permission) {
+        throw new NotFoundException(`Permission với ID ${id} không tồn tại`);
+      }
+
+      // Check if permission is used by roles
+      const roleCount = await this.prisma.role.count({
+        where: {
+          permissions: {
+            some: { id },
+          },
+        },
+      });
+
+      if (roleCount > 0) {
+        throw new BadRequestException(`Không thể xóa vĩnh viễn permission này vì đang được sử dụng bởi ${roleCount} role(s)`);
+      }
+
+      await this.prisma.permission.delete({
+        where: { id },
+      });
+
+      this.logger.log(`✅ Permission ID ${id} đã được xóa vĩnh viễn thành công`);
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error(`Error permanently deleting permission ${id}: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('Không thể xóa vĩnh viễn permission');
+    }
   }
 }
