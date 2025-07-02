@@ -814,28 +814,48 @@ export class UserStatsResponseDto {
 }
 
 /**
- * Base DTO for bulk operation responses.
+ * Details for bulk operation responses - improved to match role service pattern
  */
-class BulkOperationResponseDto {
-  @ApiProperty({ description: 'Thông báo kết quả' })
-  message: string;
-
-  @ApiPropertyOptional({
-    description: 'Danh sách các ID không thành công hoặc không được tìm thấy',
-    example: [4, 5],
+class BulkOperationDetailsDto {
+  @ApiProperty({ 
+    description: 'Danh sách ID đã xử lý thành công',
+    example: [1, 2, 3]
   })
-  failedIds?: number[];
+  successIds: number[];
+
+  @ApiProperty({ 
+    description: 'Danh sách ID bị bỏ qua',
+    example: [4, 5]
+  })
+  skippedIds: number[];
 
   @ApiPropertyOptional({
     description: 'Mảng chứa thông điệp lỗi chi tiết (nếu có)',
-    example: ['User with ID 4 not found.'],
+    example: ['User with ID 4 not found', 'User with ID 5 is already deleted'],
   })
   errors?: string[];
+}
+
+/**
+ * Base DTO for bulk operation responses - enhanced with detailed structure
+ */
+class BulkOperationResponseDto {
+  @ApiProperty({ description: 'Trạng thái thành công', example: true })
+  success: boolean;
+
+  @ApiProperty({ description: 'Thông báo kết quả' })
+  message: string;
+
+  @ApiProperty({ description: 'Chi tiết kết quả thao tác', type: BulkOperationDetailsDto })
+  details: BulkOperationDetailsDto;
 }
 
 export class BulkDeleteResponseDto extends BulkOperationResponseDto {
   @ApiProperty({ description: 'Số người dùng đã xóa thành công', example: 10 })
   deletedCount: number;
+
+  @ApiProperty({ description: 'Số người dùng bị bỏ qua', example: 2 })
+  skippedCount: number;
 }
 
 export class BulkRestoreResponseDto extends BulkOperationResponseDto {
@@ -844,6 +864,9 @@ export class BulkRestoreResponseDto extends BulkOperationResponseDto {
     example: 8,
   })
   restoredCount: number;
+
+  @ApiProperty({ description: 'Số người dùng bị bỏ qua', example: 1 })
+  skippedCount: number;
 }
 
 export class BulkPermanentDeleteResponseDto extends BulkOperationResponseDto {
@@ -852,6 +875,9 @@ export class BulkPermanentDeleteResponseDto extends BulkOperationResponseDto {
     example: 5,
   })
   deletedCount: number;
+
+  @ApiProperty({ description: 'Số người dùng bị bỏ qua', example: 3 })
+  skippedCount: number;
 }
 
 export class BulkUpdateResponseDto extends BulkOperationResponseDto {
@@ -860,4 +886,7 @@ export class BulkUpdateResponseDto extends BulkOperationResponseDto {
     example: 12,
   })
   updatedCount: number;
+
+  @ApiProperty({ description: 'Số người dùng bị bỏ qua', example: 0 })
+  skippedCount: number;
 }

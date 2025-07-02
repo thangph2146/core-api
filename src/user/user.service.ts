@@ -1406,56 +1406,78 @@ export class UserService {
   // =============================================================================
 
   /**
-   * Bulk soft delete users
+   * Bulk soft delete users - Enhanced with detailed response structure
    */
   async bulkDelete(userIds: number[]): Promise<BulkDeleteResponseDto> {
     this.logger.log(`Bulk deleting users: ${userIds.join(', ')}`);
 
     try {
       const validatedUserIds = this.validateUserIds(userIds);
+      const deletedIds: number[] = [];
+      const skippedIds: number[] = [];
+      const errors: string[] = [];
 
       // Kiểm tra users tồn tại và chưa bị xóa
       const existingUsers = await this.prisma.user.findMany({
         where: {
           id: { in: validatedUserIds },
-          deletedAt: null,
         },
-        select: { id: true },
+        select: { id: true, deletedAt: true, name: true },
       });
 
-      if (existingUsers.length === 0) {
-        return {
-          deletedCount: 0,
-          message: 'Không tìm thấy người dùng nào để xóa.',
-          failedIds: validatedUserIds,
-          errors: ['Không có người dùng nào có thể xóa'],
-        };
+      const existingUserIds = existingUsers.map(u => u.id);
+      const nonExistingIds = validatedUserIds.filter(id => !existingUserIds.includes(id));
+      const alreadyDeletedUsers = existingUsers.filter(u => u.deletedAt !== null);
+      const deletableUsers = existingUsers.filter(u => u.deletedAt === null);
+
+      // Add skipped users with reasons
+      if (nonExistingIds.length > 0) {
+        skippedIds.push(...nonExistingIds);
+        errors.push(`Người dùng không tồn tại: ID ${nonExistingIds.join(', ')}`);
       }
 
-      const result = await this.prisma.user.updateMany({
-        where: {
-          id: { in: existingUsers.map((u) => u.id) },
-          deletedAt: null,
-        },
-        data: {
-          deletedAt: new Date(),
-        },
-      });
+      if (alreadyDeletedUsers.length > 0) {
+        skippedIds.push(...alreadyDeletedUsers.map(u => u.id));
+        const userNames = alreadyDeletedUsers.map(u => u.name || `ID ${u.id}`).join(', ');
+        errors.push(`Người dùng đã bị xóa: ${userNames}`);
+      }
 
-      const failedIds = validatedUserIds.filter(
-        (id) => !existingUsers.some((user) => user.id === id),
-      );
+      // Perform bulk delete for deletable users
+      if (deletableUsers.length > 0) {
+        const result = await this.prisma.user.updateMany({
+          where: {
+            id: { in: deletableUsers.map(u => u.id) },
+            deletedAt: null,
+          },
+          data: {
+            deletedAt: new Date(),
+          },
+        });
+        deletedIds.push(...deletableUsers.map(u => u.id));
+      }
 
-      this.logger.log(`Bulk delete completed: ${result.count} users deleted`);
+      const success = deletedIds.length > 0;
+      let message = success 
+        ? `Đã xóa thành công ${deletedIds.length} người dùng${skippedIds.length > 0 ? `, bỏ qua ${skippedIds.length} người dùng` : ''}`
+        : 'Không có người dùng nào được xóa';
+      
+      // Add specific error details to message if there are errors for better toast display
+      if (errors.length > 0 && skippedIds.length > 0) {
+        message += `. ${errors.join('; ')}`;
+      }
+
+      this.logger.log(`Bulk delete completed: ${deletedIds.length} deleted, ${skippedIds.length} skipped`);
 
       return {
-        deletedCount: result.count,
-        message: `Đã xóa ${result.count} người dùng thành công.`,
-        failedIds,
-        errors:
-          failedIds.length > 0
-            ? ['Một số ID không tồn tại hoặc đã bị xóa']
-            : [],
+        success,
+        deletedCount: deletedIds.length,
+        skippedCount: skippedIds.length,
+        message,
+        details: {
+          successIds: deletedIds,
+          skippedIds,
+          errors: errors.length > 0 ? errors : undefined,
+        },
       };
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -1470,56 +1492,78 @@ export class UserService {
   }
 
   /**
-   * Bulk restore users
+   * Bulk restore users - Enhanced with detailed response structure
    */
   async bulkRestore(userIds: number[]): Promise<BulkRestoreResponseDto> {
     this.logger.log(`Bulk restoring users: ${userIds.join(', ')}`);
 
     try {
       const validatedUserIds = this.validateUserIds(userIds);
+      const restoredIds: number[] = [];
+      const skippedIds: number[] = [];
+      const errors: string[] = [];
 
       // Kiểm tra users tồn tại và đã bị xóa
       const existingUsers = await this.prisma.user.findMany({
         where: {
           id: { in: validatedUserIds },
-          deletedAt: { not: null },
         },
-        select: { id: true },
+        select: { id: true, deletedAt: true, name: true },
       });
 
-      if (existingUsers.length === 0) {
-        return {
-          restoredCount: 0,
-          message: 'Không tìm thấy người dùng nào để khôi phục.',
-          failedIds: validatedUserIds,
-          errors: ['Không có người dùng nào có thể khôi phục'],
-        };
+      const existingUserIds = existingUsers.map(u => u.id);
+      const nonExistingIds = validatedUserIds.filter(id => !existingUserIds.includes(id));
+      const notDeletedUsers = existingUsers.filter(u => u.deletedAt === null);
+      const restorableUsers = existingUsers.filter(u => u.deletedAt !== null);
+
+      // Add skipped users with reasons
+      if (nonExistingIds.length > 0) {
+        skippedIds.push(...nonExistingIds);
+        errors.push(`Người dùng không tồn tại: ID ${nonExistingIds.join(', ')}`);
       }
 
-      const result = await this.prisma.user.updateMany({
-        where: {
-          id: { in: existingUsers.map((u) => u.id) },
-          deletedAt: { not: null },
-        },
-        data: {
-          deletedAt: null,
-        },
-      });
+      if (notDeletedUsers.length > 0) {
+        skippedIds.push(...notDeletedUsers.map(u => u.id));
+        const userNames = notDeletedUsers.map(u => u.name || `ID ${u.id}`).join(', ');
+        errors.push(`Người dùng chưa bị xóa: ${userNames}`);
+      }
 
-      const failedIds = validatedUserIds.filter(
-        (id) => !existingUsers.some((user) => user.id === id),
-      );
+      // Perform bulk restore for restorable users
+      if (restorableUsers.length > 0) {
+        const result = await this.prisma.user.updateMany({
+          where: {
+            id: { in: restorableUsers.map(u => u.id) },
+            deletedAt: { not: null },
+          },
+          data: {
+            deletedAt: null,
+          },
+        });
+        restoredIds.push(...restorableUsers.map(u => u.id));
+      }
 
-      this.logger.log(`Bulk restore completed: ${result.count} users restored`);
+      const success = restoredIds.length > 0;
+      let message = success 
+        ? `Đã khôi phục thành công ${restoredIds.length} người dùng${skippedIds.length > 0 ? `, bỏ qua ${skippedIds.length} người dùng` : ''}`
+        : 'Không có người dùng nào được khôi phục';
+      
+      // Add specific error details to message if there are errors for better toast display
+      if (errors.length > 0 && skippedIds.length > 0) {
+        message += `. ${errors.join('; ')}`;
+      }
+
+      this.logger.log(`Bulk restore completed: ${restoredIds.length} restored, ${skippedIds.length} skipped`);
 
       return {
-        restoredCount: result.count,
-        message: `Đã khôi phục ${result.count} người dùng thành công.`,
-        failedIds,
-        errors:
-          failedIds.length > 0
-            ? ['Một số ID không tồn tại hoặc chưa bị xóa']
-            : [],
+        success,
+        restoredCount: restoredIds.length,
+        skippedCount: skippedIds.length,
+        message,
+        details: {
+          successIds: restoredIds,
+          skippedIds,
+          errors: errors.length > 0 ? errors : undefined,
+        },
       };
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -1536,7 +1580,7 @@ export class UserService {
   }
 
   /**
-   * Bulk permanently delete users
+   * Bulk permanently delete users - Enhanced with detailed response structure
    */
   async bulkPermanentDelete(
     userIds: number[],
@@ -1545,69 +1589,86 @@ export class UserService {
 
     try {
       const validatedUserIds = this.validateUserIds(userIds);
+      const deletedIds: number[] = [];
+      const skippedIds: number[] = [];
+      const errors: string[] = [];
 
       // Check how many users exist before deletion
       const existingUsers = await this.prisma.user.findMany({
         where: { id: { in: validatedUserIds } },
-        select: { id: true },
+        select: { id: true, name: true },
       });
 
-      if (existingUsers.length === 0) {
-        this.logger.warn('No users found with provided IDs');
-        return {
-          deletedCount: 0,
-          message: 'Không tìm thấy người dùng nào để xóa.',
-          failedIds: validatedUserIds,
-          errors: ['Không tìm thấy người dùng'],
-        };
+      const existingUserIds = existingUsers.map(u => u.id);
+      const nonExistingIds = validatedUserIds.filter(id => !existingUserIds.includes(id));
+
+      // Add skipped users with reasons
+      if (nonExistingIds.length > 0) {
+        skippedIds.push(...nonExistingIds);
+        errors.push(`Người dùng không tồn tại: ID ${nonExistingIds.join(', ')}`);
       }
 
-      // Use transaction to ensure atomic deletion - only delete users that exist
-      const existingUserIds = existingUsers.map((u) => u.id);
-      const result = await this.prisma.$transaction(async (tx) => {
-        // Delete related data for existing users only
-        await tx.userProfile.deleteMany({
-          where: { userId: { in: existingUserIds } },
-        });
-        await tx.account.deleteMany({
-          where: { userId: { in: existingUserIds } },
-        });
-        await tx.session.deleteMany({
-          where: { userId: { in: existingUserIds } },
-        });
-        await tx.blogLike.deleteMany({
-          where: { userId: { in: existingUserIds } },
-        });
-        await tx.blogBookmark.deleteMany({
-          where: { userId: { in: existingUserIds } },
-        });
-        await tx.blogComment.deleteMany({
-          where: { authorId: { in: existingUserIds } },
-        });
-        await tx.media.updateMany({
-          where: { uploadedById: { in: existingUserIds } },
-          data: { uploadedById: null },
+      // Perform bulk permanent delete for existing users
+      if (existingUsers.length > 0) {
+        // Use transaction to ensure atomic deletion - only delete users that exist
+        const result = await this.prisma.$transaction(async (tx) => {
+          // Delete related data for existing users only
+          await tx.userProfile.deleteMany({
+            where: { userId: { in: existingUserIds } },
+          });
+          await tx.account.deleteMany({
+            where: { userId: { in: existingUserIds } },
+          });
+          await tx.session.deleteMany({
+            where: { userId: { in: existingUserIds } },
+          });
+          await tx.blogLike.deleteMany({
+            where: { userId: { in: existingUserIds } },
+          });
+          await tx.blogBookmark.deleteMany({
+            where: { userId: { in: existingUserIds } },
+          });
+          await tx.blogComment.deleteMany({
+            where: { authorId: { in: existingUserIds } },
+          });
+          await tx.media.updateMany({
+            where: { uploadedById: { in: existingUserIds } },
+            data: { uploadedById: null },
+          });
+
+          // Delete users
+          return await tx.user.deleteMany({
+            where: { id: { in: existingUserIds } },
+          });
         });
 
-        // Delete users
-        return await tx.user.deleteMany({
-          where: { id: { in: existingUserIds } },
-        });
-      });
+        deletedIds.push(...existingUserIds);
+      }
+
+      const success = deletedIds.length > 0;
+      let message = success 
+        ? `Đã xóa vĩnh viễn thành công ${deletedIds.length} người dùng${skippedIds.length > 0 ? `, bỏ qua ${skippedIds.length} người dùng` : ''}`
+        : 'Không có người dùng nào được xóa vĩnh viễn';
+      
+      // Add specific error details to message if there are errors for better toast display
+      if (errors.length > 0 && skippedIds.length > 0) {
+        message += `. ${errors.join('; ')}`;
+      }
 
       this.logger.log(
-        `Bulk permanent delete completed: ${result.count} users deleted`,
-      );
-
-      const failedIds = validatedUserIds.filter(
-        (id) => !existingUsers.some((user) => user.id === id),
+        `Bulk permanent delete completed: ${deletedIds.length} deleted, ${skippedIds.length} skipped`,
       );
 
       return {
-        deletedCount: result.count,
-        message: `Đã xóa vĩnh viễn ${result.count} người dùng thành công.`,
-        failedIds,
-        errors: failedIds.length > 0 ? ['Một số ID không tồn tại'] : [],
+        success,
+        deletedCount: deletedIds.length,
+        skippedCount: skippedIds.length,
+        message,
+        details: {
+          successIds: deletedIds,
+          skippedIds,
+          errors: errors.length > 0 ? errors : undefined,
+        },
       };
     } catch (error) {
       if (error instanceof BadRequestException) {
@@ -1624,7 +1685,7 @@ export class UserService {
   }
 
   /**
-   * Bulk update users
+   * Bulk update users - Enhanced with detailed response structure
    */
   async bulkUpdate(
     userIds: number[],
@@ -1634,94 +1695,108 @@ export class UserService {
 
     try {
       const validatedUserIds = this.validateUserIds(userIds);
+      const updatedIds: number[] = [];
+      const skippedIds: number[] = [];
+      const errors: string[] = [];
 
       // Validate roleId if provided
       if (updateData.roleId) {
         await this.validateRole(updateData.roleId);
       }
 
-      // Kiểm tra users tồn tại
+      // Kiểm tra users tồn tại và chưa bị xóa
       const existingUsers = await this.prisma.user.findMany({
         where: {
           id: { in: validatedUserIds },
-          deletedAt: null,
         },
-        select: { id: true },
+        select: { id: true, deletedAt: true, name: true },
       });
 
-      if (existingUsers.length === 0) {
-        return {
-          updatedCount: 0,
-          message: 'Không tìm thấy người dùng nào để cập nhật.',
-          failedIds: validatedUserIds,
-          errors: ['Không có người dùng nào có thể cập nhật'],
-        };
+      const existingUserIds = existingUsers.map(u => u.id);
+      const nonExistingIds = validatedUserIds.filter(id => !existingUserIds.includes(id));
+      const deletedUsers = existingUsers.filter(u => u.deletedAt !== null);
+      const updatableUsers = existingUsers.filter(u => u.deletedAt === null);
+
+      // Add skipped users with reasons
+      if (nonExistingIds.length > 0) {
+        skippedIds.push(...nonExistingIds);
+        errors.push(`Người dùng không tồn tại: ID ${nonExistingIds.join(', ')}`);
       }
 
-      // Prepare update data
-      const prismaUpdateData: Prisma.UserUpdateManyMutationInput = {};
-
-      if (updateData.name !== undefined) {
-        prismaUpdateData.name = updateData.name?.trim() || null;
+      if (deletedUsers.length > 0) {
+        skippedIds.push(...deletedUsers.map(u => u.id));
+        const userNames = deletedUsers.map(u => u.name || `ID ${u.id}`).join(', ');
+        errors.push(`Người dùng đã bị xóa: ${userNames}`);
       }
 
-      if (updateData.avatarUrl !== undefined) {
-        prismaUpdateData.avatarUrl = updateData.avatarUrl?.trim() || null;
-      }
+      // Perform bulk update for updatable users
+      if (updatableUsers.length > 0) {
+        // Prepare update data
+        const prismaUpdateData: Prisma.UserUpdateManyMutationInput = {};
 
-      if (updateData.image !== undefined) {
-        prismaUpdateData.image = updateData.image?.trim() || null;
-      }
+        if (updateData.name !== undefined) {
+          prismaUpdateData.name = updateData.name?.trim() || null;
+        }
 
-      // For roleId, we need to use updateMany with connect/disconnect which is not supported
-      // So we'll do individual updates for role changes
-      if (updateData.roleId !== undefined) {
-        const updates = existingUsers.map((user) =>
-          this.prisma.user.update({
-            where: { id: user.id },
-            data: {
-              ...prismaUpdateData,
-              role: updateData.roleId
-                ? { connect: { id: updateData.roleId } }
-                : { disconnect: true },
+        if (updateData.avatarUrl !== undefined) {
+          prismaUpdateData.avatarUrl = updateData.avatarUrl?.trim() || null;
+        }
+
+        if (updateData.image !== undefined) {
+          prismaUpdateData.image = updateData.image?.trim() || null;
+        }
+
+        // For roleId, we need to use individual updates since updateMany doesn't support relations
+        if (updateData.roleId !== undefined) {
+          const updates = updatableUsers.map((user) =>
+            this.prisma.user.update({
+              where: { id: user.id },
+              data: {
+                ...prismaUpdateData,
+                role: updateData.roleId
+                  ? { connect: { id: updateData.roleId } }
+                  : { disconnect: true },
+              },
+            }),
+          );
+
+          await Promise.all(updates);
+          updatedIds.push(...updatableUsers.map(u => u.id));
+        } else {
+          // For non-role updates, use updateMany
+          const result = await this.prisma.user.updateMany({
+            where: {
+              id: { in: updatableUsers.map((u) => u.id) },
+              deletedAt: null,
             },
-          }),
-        );
-
-        await Promise.all(updates);
-
-        const failedIds = validatedUserIds.filter(
-          (id) => !existingUsers.some((user) => user.id === id),
-        );
-
-        return {
-          updatedCount: existingUsers.length,
-          message: `Đã cập nhật ${existingUsers.length} người dùng thành công.`,
-          failedIds,
-          errors: failedIds.length > 0 ? ['Một số ID không tồn tại'] : [],
-        };
+            data: prismaUpdateData,
+          });
+          updatedIds.push(...updatableUsers.map(u => u.id));
+        }
       }
 
-      // For non-role updates, use updateMany
-      const result = await this.prisma.user.updateMany({
-        where: {
-          id: { in: existingUsers.map((u) => u.id) },
-          deletedAt: null,
-        },
-        data: prismaUpdateData,
-      });
+      const success = updatedIds.length > 0;
+      let message = success 
+        ? `Đã cập nhật thành công ${updatedIds.length} người dùng${skippedIds.length > 0 ? `, bỏ qua ${skippedIds.length} người dùng` : ''}`
+        : 'Không có người dùng nào được cập nhật';
+      
+      // Add specific error details to message if there are errors for better toast display
+      if (errors.length > 0 && skippedIds.length > 0) {
+        message += `. ${errors.join('; ')}`;
+      }
 
-      const failedIds = validatedUserIds.filter(
-        (id) => !existingUsers.some((user) => user.id === id),
-      );
-
-      this.logger.log(`Bulk update completed: ${result.count} users updated`);
+      this.logger.log(`Bulk update completed: ${updatedIds.length} updated, ${skippedIds.length} skipped`);
 
       return {
-        updatedCount: result.count,
-        message: `Đã cập nhật ${result.count} người dùng thành công.`,
-        failedIds,
-        errors: failedIds.length > 0 ? ['Một số ID không tồn tại'] : [],
+        success,
+        updatedCount: updatedIds.length,
+        skippedCount: skippedIds.length,
+        message,
+        details: {
+          successIds: updatedIds,
+          skippedIds,
+          errors: errors.length > 0 ? errors : undefined,
+        },
       };
     } catch (error) {
       if (error instanceof BadRequestException) {

@@ -426,9 +426,14 @@ export class RoleService {
     }
 
     const success = deletedIds.length > 0;
-    const message = success 
+    let message = success 
       ? `Đã xóa thành công ${deletedIds.length} vai trò${skippedIds.length > 0 ? `, bỏ qua ${skippedIds.length} vai trò` : ''}`
       : 'Không có vai trò nào được xóa';
+    
+    // Add specific error details to message if there are errors for better toast display
+    if (errors.length > 0 && skippedIds.length > 0) {
+      message += `. ${errors.join('; ')}`;
+    }
 
     return {
       success,
@@ -512,9 +517,14 @@ export class RoleService {
     }
 
     const success = restoredIds.length > 0;
-    const message = success 
+    let message = success 
       ? `Đã khôi phục thành công ${restoredIds.length} vai trò${skippedIds.length > 0 ? `, bỏ qua ${skippedIds.length} vai trò` : ''}`
       : 'Không có vai trò nào được khôi phục';
+    
+    // Add specific error details to message if there are errors for better toast display
+    if (errors.length > 0 && skippedIds.length > 0) {
+      message += `. ${errors.join('; ')}`;
+    }
 
     return {
       success,
@@ -610,9 +620,14 @@ export class RoleService {
     }
 
     const success = deletedIds.length > 0;
-    const message = success 
+    let message = success 
       ? `Đã xóa vĩnh viễn thành công ${deletedIds.length} vai trò${skippedIds.length > 0 ? `, bỏ qua ${skippedIds.length} vai trò` : ''}`
       : 'Không có vai trò nào được xóa vĩnh viễn';
+    
+    // Add specific error details to message if there are errors for better toast display
+    if (errors.length > 0 && skippedIds.length > 0) {
+      message += `. ${errors.join('; ')}`;
+    }
 
     return {
       success,
