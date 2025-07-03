@@ -121,7 +121,6 @@ interface BulkOperationResult {
 const SALT_ROUNDS = 12;
 const PASSWORD_RESET_TOKEN_EXPIRY = 24 * 60 * 60 * 1000; // 24 hours
 const DEFAULT_PAGE_SIZE = 10;
-const MAX_PAGE_SIZE = 100;
 const MAX_BULK_OPERATION_SIZE = 100;
 
 /**
@@ -439,22 +438,7 @@ export class UserService {
     }
   }
 
-  /**
-   * Validate pagination parameters
-   */
-  private validatePaginationParams(
-    page: number,
-    limit: number,
-  ): { page: number; limit: number } {
-    const validatedPage = Math.max(1, page || 1);
-    const validatedLimit = Math.min(
-      Math.max(1, limit || DEFAULT_PAGE_SIZE),
-      MAX_PAGE_SIZE,
-    );
-
-    return { page: validatedPage, limit: validatedLimit };
-  }
-
+ 
   // =============================================================================
   // PRIVATE HELPER METHODS - DATA FORMATTING
   // =============================================================================
