@@ -15,7 +15,7 @@ async function bootstrap() {
   app.use(cookieParser());
   // Enable CORS with security headers
   app.enableCors({
-    origin: ['http://localhost:3000', 'https://www.phgrouptechs.com'],
+    origin: ['http://localhost:3000', 'https://www.phgrouptechs.com', 'https://core-cms-project.vercel.app'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: [
