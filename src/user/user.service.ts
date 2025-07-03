@@ -29,6 +29,7 @@ import {
   UserExportDto,
   AdminUserAction,
 } from './dto/user.dto';
+import { SessionService } from '../auth/session.service';
 import { Prisma, User } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -275,7 +276,10 @@ const EXPORT_INCLUDES = {
 export class UserService {
   private readonly logger = new Logger(UserService.name);
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private sessionService: SessionService,
+  ) {
     this.logger.log('🚀 UserService initialized with enhanced API separation');
   }
 
@@ -1270,7 +1274,10 @@ export class UserService {
         data: { deletedAt: new Date() },
       });
 
-      this.logger.log(`User được xóa mềm thành công với ID: ${id}`);
+      // Invalidate all sessions for the deleted user
+      await this.sessionService.deleteAllUserSessions(id);
+
+      this.logger.log(`User được xóa mềm thành công với ID: ${id}, tất cả sessions đã được vô hiệu hóa`);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -1428,16 +1435,26 @@ export class UserService {
 
       // Perform bulk delete for deletable users
       if (deletableUsers.length > 0) {
+        const deletableUserIds = deletableUsers.map(u => u.id);
+        
         const result = await this.prisma.user.updateMany({
           where: {
-            id: { in: deletableUsers.map(u => u.id) },
+            id: { in: deletableUserIds },
             deletedAt: null,
           },
           data: {
             deletedAt: new Date(),
           },
         });
-        deletedIds.push(...deletableUsers.map(u => u.id));
+        
+        // Invalidate sessions for all deleted users
+        await Promise.all(
+          deletableUserIds.map(userId => 
+            this.sessionService.deleteAllUserSessions(userId)
+          )
+        );
+        
+        deletedIds.push(...deletableUserIds);
       }
 
       const success = deletedIds.length > 0;
@@ -1450,7 +1467,7 @@ export class UserService {
         message += `. ${errors.join('; ')}`;
       }
 
-      this.logger.log(`Bulk delete completed: ${deletedIds.length} deleted, ${skippedIds.length} skipped`);
+      this.logger.log(`Bulk delete completed: ${deletedIds.length} deleted, ${skippedIds.length} skipped, sessions invalidated for deleted users`);
 
       return {
         success,

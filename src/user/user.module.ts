@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { PrismaModule } from '../prisma/prisma.module';
+import { SessionService } from '../auth/session.service';
 
 /**
  * User Module
@@ -53,6 +54,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 	],
 	providers: [
 		UserService,      // Business logic và data operations
+		SessionService,   // Session management for user operations
 	],
 	exports: [
 		UserService,      // Export để sử dụng trong modules khác
