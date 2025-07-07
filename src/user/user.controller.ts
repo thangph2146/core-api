@@ -44,17 +44,10 @@ import {
   BulkDeleteResponseDto,
   BulkRestoreResponseDto,
   BulkPermanentDeleteResponseDto,
-  BulkUpdateResponseDto,
-  BulkUpdateUserDto,
-  AdminUserActionDto,
-  UserExportDto,
-  ForgotPasswordDto,
-  ResetPasswordDto,
 } from './dto/user.dto';
 import {
   CrudPermissions,
-  Public,
-  RequireOwnership,
+  CurrentUser,
 } from '../common/decorators/permissions.decorator';
 import { EnhancedAuthGuard } from '../common/guards/enhanced-auth.guard';
 import { AuditLogInterceptor } from '../common/interceptors/audit-log.interceptor';
@@ -135,8 +128,11 @@ export class UserController {
     description: 'Danh sách người dùng',
     type: UserListResponseDto,
   })
-  async findAll(@Query() query: AdminUserQueryDto): Promise<UserListResponseDto> {
-    return this.userService.findAll(query);
+  async findAll(
+    @Query() query: AdminUserQueryDto,
+    @CurrentUser() currentUser: any,
+  ): Promise<UserListResponseDto> {
+    return this.userService.findAll(query, currentUser.id);
   }
 
   @Get('public')

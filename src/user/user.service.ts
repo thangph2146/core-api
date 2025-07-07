@@ -489,7 +489,7 @@ export class UserService {
   /**
    * Find all users with filtering and pagination (Admin)
    */
-  async findAll(query: AdminUserQueryDto): Promise<UserListResponseDto> {
+  async findAll(query: AdminUserQueryDto, currentUserId?: number): Promise<UserListResponseDto> {
     const {
       page = 1,
       limit = 10,
@@ -510,6 +510,14 @@ export class UserService {
       };
 
       const where = this.buildWhereClause(filters);
+      
+      // Exclude current user from results
+      if (currentUserId) {
+        where.id = {
+          not: currentUserId,
+        };
+      }
+
       const orderBy = this.buildOrderByClause({ sortBy, sortOrder });
 
       const [users, total] = await Promise.all([

@@ -1,4 +1,4 @@
-import { SetMetadata } from '@nestjs/common';
+import { SetMetadata, createParamDecorator, ExecutionContext } from '@nestjs/common';
 import { PERMISSIONS } from '../constants/permissions.constants';
 
 export const PERMISSIONS_KEY = 'permissions';
@@ -289,3 +289,13 @@ export const CrudPermissions = {
 export const RequireOwnership = (
 	resourceType: 'BLOGS' | 'MEDIA' | 'RECRUITMENT' | 'USER' | 'CATEGORIES' | 'TAGS' | 'COMMENTS',
 ) => SetMetadata(OWNERSHIP_KEY, { resourceType });
+
+/**
+ * Decorator to get current user from request
+ */
+export const CurrentUser = createParamDecorator(
+	(data: unknown, ctx: ExecutionContext) => {
+		const request = ctx.switchToHttp().getRequest();
+		return request.user;
+	},
+);
