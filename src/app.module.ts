@@ -16,9 +16,12 @@ import { RoleModule } from './role/role.module';
 import { PermissionModule } from './permission/permission.module';
 import { CategoryModule } from './category/category.module';
 import { TagModule } from './tag/tag.module';
+import { MediaModule } from './media/media.module';
+import { RecruitmentModule } from './recruitment/recruitment.module';
+import { ServiceModule } from './service/service.module';
+import { StatusModule } from './status/status.module';
 import { AuthGuard } from './auth/auth.guard';
 import { SecurityHeadersMiddleware } from './common/middleware/security-headers.middleware';
-import { SanitizationPipe } from './common/pipes/sanitization.pipe';
 import { RateLimitInterceptor } from './common/interceptors/rate-limit.interceptor';
 import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor';
 
@@ -28,13 +31,17 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
       isGlobal: true,
     }),
     PrismaModule,
-    BlogModule,
     AuthModule,
     UserModule,
     RoleModule,
     PermissionModule,
+    BlogModule,
     CategoryModule,
     TagModule,
+    MediaModule,
+    RecruitmentModule,
+    ServiceModule,
+    StatusModule,
   ],
   controllers: [AppController],
   providers: [
@@ -54,12 +61,9 @@ import { AuditLogInterceptor } from './common/interceptors/audit-log.interceptor
         },
         whitelist: true,
         forbidNonWhitelisted: false,
+        disableErrorMessages: false,
       }),
     },
-    // {
-    //   provide: APP_PIPE,
-    //   useClass: SanitizationPipe,
-    // },
     // Global Interceptors
     {
       provide: APP_INTERCEPTOR,

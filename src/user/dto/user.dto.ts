@@ -309,12 +309,12 @@ export class ResetPasswordDto {
 // =============================================================================
 // QUERY & FILTER DTOs
 // =============================================================================
-export class UserQueryDto {
+export class AdminUserQueryDto {
   @ApiPropertyOptional({
-    description: 'Số trang (bắt đầu từ 1)',
+    description: 'Số trang',
+    example: 1,
     minimum: 1,
     default: 1,
-    example: 1,
   })
   @IsOptional()
   @Type(() => Number)
@@ -327,11 +327,11 @@ export class UserQueryDto {
   page?: number = 1;
 
   @ApiPropertyOptional({
-    description: 'Số lượng bản ghi mỗi trang',
+    description: 'Số lượng item mỗi trang',
+    example: 10,
     minimum: 1,
     maximum: 100,
     default: 10,
-    example: 10,
   })
   @IsOptional()
   @Type(() => Number)
@@ -345,8 +345,7 @@ export class UserQueryDto {
   limit?: number = 10;
 
   @ApiPropertyOptional({
-    description: 'Từ khóa tìm kiếm (tên hoặc email)',
-    maxLength: 255,
+    description: 'Từ khóa tìm kiếm',
     example: 'Nguyễn',
   })
   @IsOptional()
@@ -356,9 +355,54 @@ export class UserQueryDto {
   search?: string;
 
   @ApiPropertyOptional({
+    description: 'Trường sắp xếp',
+    enum: UserSortBy,
+    default: UserSortBy.CREATED_AT,
+  })
+  @IsOptional()
+  @IsEnum(UserSortBy, { message: 'Sort by không hợp lệ' })
+  sortBy?: UserSortBy = UserSortBy.CREATED_AT;
+
+  @ApiPropertyOptional({
+    description: 'Thứ tự sắp xếp',
+    enum: SortOrder,
+    default: SortOrder.DESC,
+  })
+  @IsOptional()
+  @IsEnum(SortOrder, { message: 'Sort order phải là asc hoặc desc' })
+  sortOrder?: SortOrder = SortOrder.DESC;
+
+  @ApiPropertyOptional({
+    description: 'Bao gồm cả người dùng đã xóa',
+    default: false,
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.toLowerCase() === 'true';
+    }
+    return Boolean(value);
+  })
+  @IsBoolean({ message: 'Include deleted phải là boolean' })
+  includeDeleted?: boolean = false;
+
+  @ApiPropertyOptional({
+    description: 'Chỉ lấy người dùng đã xóa',
+    default: false,
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value.toLowerCase() === 'true';
+    }
+    return Boolean(value);
+  })
+  @IsBoolean({ message: 'Deleted phải là boolean' })
+  deleted?: boolean = false;
+
+  @ApiPropertyOptional({
     description: 'Lọc theo ID vai trò',
     minimum: 1,
-    example: 1,
   })
   @IsOptional()
   @Type(() => Number)
@@ -372,58 +416,7 @@ export class UserQueryDto {
   roleId?: number;
 
   @ApiPropertyOptional({
-    description: 'Trường để sắp xếp',
-    enum: UserSortBy,
-    default: UserSortBy.CREATED_AT,
-    example: UserSortBy.CREATED_AT,
-  })
-  @IsOptional()
-  @IsEnum(UserSortBy, { message: 'Sort by không hợp lệ' })
-  sortBy?: UserSortBy = UserSortBy.CREATED_AT;
-
-  @ApiPropertyOptional({
-    description: 'Thứ tự sắp xếp',
-    enum: SortOrder,
-    default: SortOrder.DESC,
-    example: SortOrder.DESC,
-  })
-  @IsOptional()
-  @IsEnum(SortOrder, { message: 'Sort order phải là asc hoặc desc' })
-  sortOrder?: SortOrder = SortOrder.DESC;
-
-  @ApiPropertyOptional({
-    description: 'Bao gồm cả người dùng đã xóa',
-    default: false,
-    example: false,
-  })
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return value.toLowerCase() === 'true';
-    }
-    return Boolean(value);
-  })
-  @IsBoolean({ message: 'Include deleted phải là boolean' })
-  includeDeleted?: boolean = false;
-
-  @ApiPropertyOptional({
-    description: 'Chỉ hiển thị người dùng đã xóa',
-    default: false,
-    example: false,
-  })
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return value.toLowerCase() === 'true';
-    }
-    return Boolean(value);
-  })
-  @IsBoolean({ message: 'Deleted phải là boolean' })
-  deleted?: boolean = false;
-
-  @ApiPropertyOptional({
     description: 'Lọc theo trạng thái xác thực email',
-    example: true,
   })
   @IsOptional()
   @Transform(({ value }) => {
@@ -437,49 +430,71 @@ export class UserQueryDto {
   })
   @IsBoolean({ message: 'Verified phải là boolean' })
   verified?: boolean;
-
-  @ApiPropertyOptional({
-    description: 'Lọc từ ngày (YYYY-MM-DD)',
-    example: '2024-01-01',
-  })
-  @IsOptional()
-  @IsDateString({}, { message: 'Date from phải là ngày hợp lệ (YYYY-MM-DD)' })
-  dateFrom?: string;
-
-  @ApiPropertyOptional({
-    description: 'Lọc đến ngày (YYYY-MM-DD)',
-    example: '2024-12-31',
-  })
-  @IsOptional()
-  @IsDateString({}, { message: 'Date to phải là ngày hợp lệ (YYYY-MM-DD)' })
-  dateTo?: string;
 }
 
-export class UserStatsQueryDto {
+// Public query DTO (không có deleted options)
+export class UserQueryDto {
   @ApiPropertyOptional({
-    description: 'Bao gồm người dùng đã xóa trong thống kê',
-    default: false,
+    description: 'Số trang',
+    example: 1,
+    minimum: 1,
+    default: 1,
   })
   @IsOptional()
-  @Transform(({ value }) => {
-    if (typeof value === 'string') {
-      return value.toLowerCase() === 'true';
-    }
-    return Boolean(value);
-  })
-  @IsBoolean({ message: 'Include deleted phải là boolean' })
-  includeDeleted?: boolean = false;
+  @Type(() => Number)
+  @IsInt({ message: 'Page phải là số nguyên' })
+  @Min(1, { message: 'Page phải lớn hơn hoặc bằng 1' })
+  page?: number = 1;
 
   @ApiPropertyOptional({
-    description: 'Nhóm thống kê theo khoảng thời gian',
-    enum: ['day', 'week', 'month', 'year'],
-    example: 'month',
+    description: 'Số lượng item mỗi trang',
+    example: 10,
+    minimum: 1,
+    maximum: 100,
+    default: 10,
   })
   @IsOptional()
-  @IsEnum(['day', 'week', 'month', 'year'], {
-    message: 'Group by phải là day, week, month hoặc year',
+  @Type(() => Number)
+  @IsInt({ message: 'Limit phải là số nguyên' })
+  @Min(1, { message: 'Limit phải lớn hơn hoặc bằng 1' })
+  @Max(100, { message: 'Limit không được vượt quá 100' })
+  limit?: number = 10;
+
+  @ApiPropertyOptional({
+    description: 'Từ khóa tìm kiếm',
+    example: 'Nguyễn',
   })
-  groupBy?: 'day' | 'week' | 'month' | 'year';
+  @IsOptional()
+  @IsString({ message: 'Search phải là chuỗi ký tự' })
+  @MaxLength(255, { message: 'Từ khóa tìm kiếm không được vượt quá 255 ký tự' })
+  search?: string;
+
+  @ApiPropertyOptional({
+    description: 'Trường sắp xếp',
+    enum: ['id', 'email', 'name', 'createdAt', 'updatedAt'],
+    default: 'createdAt',
+  })
+  @IsOptional()
+  @IsString()
+  sortBy?: string = 'createdAt';
+
+  @ApiPropertyOptional({
+    description: 'Thứ tự sắp xếp',
+    enum: SortOrder,
+    default: SortOrder.DESC,
+  })
+  @IsOptional()
+  @IsEnum(SortOrder, { message: 'Sort order phải là asc hoặc desc' })
+  sortOrder?: SortOrder = SortOrder.DESC;
+
+  @ApiPropertyOptional({
+    description: 'Lọc theo ID vai trò',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'Role ID phải là số nguyên' })
+  @IsPositive({ message: 'Role ID phải lớn hơn 0' })
+  roleId?: number;
 }
 
 // =============================================================================
@@ -487,11 +502,10 @@ export class UserStatsQueryDto {
 // =============================================================================
 export class BulkUserOperationDto {
   @ApiProperty({
-    description: 'Mảng ID người dùng cần thao tác',
-    type: [Number],
+    description: 'Danh sách ID người dùng',
     example: [1, 2, 3],
+    type: [Number],
     minItems: 1,
-    maxItems: 100,
   })
   @Transform(({ value }) => {
     if (Array.isArray(value)) {
@@ -889,4 +903,32 @@ export class BulkUpdateResponseDto extends BulkOperationResponseDto {
 
   @ApiProperty({ description: 'Số người dùng bị bỏ qua', example: 0 })
   skippedCount: number;
+}
+
+export class UserOptionDto {
+  @ApiProperty({ description: 'Giá trị option', example: 1 })
+  value: number;
+
+  @ApiProperty({ description: 'Nhãn hiển thị', example: 'Nguyễn Văn A (user@example.com)' })
+  label: string;
+}
+
+export class UserStatsDto {
+  @ApiProperty({ description: 'Tổng số người dùng', example: 100 })
+  totalUsers: number;
+
+  @ApiProperty({ description: 'Số người dùng đang hoạt động', example: 85 })
+  activeUsers: number;
+
+  @ApiProperty({ description: 'Số người dùng đã xóa', example: 15 })
+  deletedUsers: number;
+
+  @ApiProperty({ description: 'Số người dùng có vai trò', example: 80 })
+  usersWithRoles: number;
+
+  @ApiProperty({ description: 'Số người dùng không có vai trò', example: 5 })
+  usersWithoutRoles: number;
+
+  @ApiProperty({ description: 'Số người dùng mới (30 ngày)', example: 12 })
+  recentUsers: number;
 }

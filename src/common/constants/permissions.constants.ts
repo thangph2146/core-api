@@ -76,24 +76,9 @@ export const PERMISSIONS = {
     BULK_DELETE: 'blogs:bulk_delete',
     BULK_RESTORE: 'blogs:bulk_restore',
     BULK_PERMANENT_DELETE: 'blogs:bulk_permanent_delete',
-    LIKE: 'blogs:like',
-    BOOKMARK: 'blogs:bookmark',
+    PUBLISH: 'blogs:publish',
+    UNPUBLISH: 'blogs:unpublish',
     FULL_ACCESS: 'blogs:full_access',
-  },
-
-  // Content Types (Categories + Tags) Management Permissions
-  CONTENT_TYPES: {
-    CREATE: 'content_types:create',
-    READ: 'content_types:read',
-    UPDATE: 'content_types:update',
-    DELETE: 'content_types:delete',
-    RESTORE: 'content_types:restore',
-    VIEW_DELETED: 'content_types:view_deleted',
-    PERMANENT_DELETE: 'content_types:permanent_delete',
-    BULK_DELETE: 'content_types:bulk_delete',
-    BULK_RESTORE: 'content_types:bulk_restore',
-    BULK_PERMANENT_DELETE: 'content_types:bulk_permanent_delete',
-    FULL_ACCESS: 'content_types:full_access',
   },
 
   // Category Management Permissions
@@ -126,6 +111,21 @@ export const PERMISSIONS = {
     FULL_ACCESS: 'tags:full_access',
   },
 
+  // Status Management Permissions
+  STATUS: {
+    CREATE: 'status:create',
+    READ: 'status:read',
+    UPDATE: 'status:update',
+    DELETE: 'status:delete',
+    RESTORE: 'status:restore',
+    VIEW_DELETED: 'status:view_deleted',
+    PERMANENT_DELETE: 'status:permanent_delete',
+    BULK_DELETE: 'status:bulk_delete',
+    BULK_RESTORE: 'status:bulk_restore',
+    BULK_PERMANENT_DELETE: 'status:bulk_permanent_delete',
+    FULL_ACCESS: 'status:full_access',
+  },
+
   // Media Management Permissions
   MEDIA: {
     CREATE: 'media:create',
@@ -149,11 +149,11 @@ export const PERMISSIONS = {
     DELETE: 'recruitment:delete',
     RESTORE: 'recruitment:restore',
     VIEW_DELETED: 'recruitment:view_deleted',
+    APPLY: 'recruitment:apply',
     PERMANENT_DELETE: 'recruitment:permanent_delete',
     BULK_DELETE: 'recruitment:bulk_delete',
     BULK_RESTORE: 'recruitment:bulk_restore',
     BULK_PERMANENT_DELETE: 'recruitment:bulk_permanent_delete',
-    APPLY: 'recruitment:apply',
     FULL_ACCESS: 'recruitment:full_access',
   },
 
@@ -233,6 +233,15 @@ export const PERMISSIONS = {
   },
 } as const;
 
+// Legacy aliases for backward compatibility (deprecated)
+export const LEGACY_PERMISSIONS = {
+  ROLE: PERMISSIONS.ROLES,
+  PERMISSION: PERMISSIONS.PERMISSIONS,
+  BLOG: PERMISSIONS.BLOGS,
+  SERVICE: PERMISSIONS.SERVICES,
+  CONTENT_TYPES: PERMISSIONS.CATEGORIES, // Maps to categories for backward compatibility
+} as const;
+
 /**
  * Danh sách tất cả permissions dưới dạng array
  */
@@ -250,21 +259,20 @@ export const DEFAULT_ROLES = {
     permissions: [
       // Full access permission
       PERMISSIONS.ADMIN.FULL_ACCESS,
-      // Admin permissions
+      // All permissions
       ...Object.values(PERMISSIONS.ADMIN),
-      // All other permissions
       ...Object.values(PERMISSIONS.USERS),
       ...Object.values(PERMISSIONS.ROLES),
       ...Object.values(PERMISSIONS.PERMISSIONS),
       ...Object.values(PERMISSIONS.BLOGS),
-      ...Object.values(PERMISSIONS.CONTENT_TYPES),
       ...Object.values(PERMISSIONS.CATEGORIES),
       ...Object.values(PERMISSIONS.TAGS),
+      ...Object.values(PERMISSIONS.STATUS),
       ...Object.values(PERMISSIONS.MEDIA),
-      ...Object.values(PERMISSIONS.COMMENTS),
       ...Object.values(PERMISSIONS.RECRUITMENT),
       ...Object.values(PERMISSIONS.SERVICES),
       ...Object.values(PERMISSIONS.CONTACTS),
+      ...Object.values(PERMISSIONS.COMMENTS),
       ...Object.values(PERMISSIONS.ANALYTICS),
       ...Object.values(PERMISSIONS.SETTINGS),
     ],
@@ -280,19 +288,20 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.ROLES.FULL_ACCESS,
       // Content management
       PERMISSIONS.BLOGS.FULL_ACCESS,
-      PERMISSIONS.CONTENT_TYPES.FULL_ACCESS,
+      PERMISSIONS.CATEGORIES.FULL_ACCESS,
+      PERMISSIONS.TAGS.FULL_ACCESS,
       // Media management
       PERMISSIONS.MEDIA.FULL_ACCESS,
       // Comment management
-      ...Object.values(PERMISSIONS.COMMENTS),
+      PERMISSIONS.COMMENTS.FULL_ACCESS,
       // Recruitment management
       PERMISSIONS.RECRUITMENT.FULL_ACCESS,
       // Service management
-      ...Object.values(PERMISSIONS.SERVICES),
+      PERMISSIONS.SERVICES.FULL_ACCESS,
       // Contact management
-      ...Object.values(PERMISSIONS.CONTACTS),
+      PERMISSIONS.CONTACTS.FULL_ACCESS,
       // Analytics
-      ...Object.values(PERMISSIONS.ANALYTICS),
+      PERMISSIONS.ANALYTICS.FULL_ACCESS,
       // Settings
       PERMISSIONS.SETTINGS.FULL_ACCESS,
     ],
@@ -307,8 +316,6 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.BLOGS.READ,
       PERMISSIONS.BLOGS.UPDATE,
       // Category & tag management
-      PERMISSIONS.CONTENT_TYPES.READ,
-      PERMISSIONS.CONTENT_TYPES.CREATE,
       PERMISSIONS.CATEGORIES.READ,
       PERMISSIONS.CATEGORIES.CREATE,
       PERMISSIONS.TAGS.READ,
@@ -335,9 +342,8 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.BLOGS.UPDATE,
       PERMISSIONS.BLOGS.DELETE,
       // Comment moderation
-      ...Object.values(PERMISSIONS.COMMENTS),
+      PERMISSIONS.COMMENTS.FULL_ACCESS,
       // Basic content access
-      PERMISSIONS.CONTENT_TYPES.READ,
       PERMISSIONS.CATEGORIES.READ,
       PERMISSIONS.TAGS.READ,
       PERMISSIONS.MEDIA.READ,
@@ -359,7 +365,6 @@ export const DEFAULT_ROLES = {
       PERMISSIONS.BLOGS.READ,
       PERMISSIONS.BLOGS.UPDATE,
       // Basic content access
-      PERMISSIONS.CONTENT_TYPES.READ,
       PERMISSIONS.CATEGORIES.READ,
       PERMISSIONS.TAGS.READ,
       PERMISSIONS.TAGS.CREATE,
@@ -381,7 +386,6 @@ export const DEFAULT_ROLES = {
     permissions: [
       // Read access
       PERMISSIONS.BLOGS.READ,
-      PERMISSIONS.CONTENT_TYPES.READ,
       PERMISSIONS.CATEGORIES.READ,
       PERMISSIONS.TAGS.READ,
       // Comment permissions
@@ -398,10 +402,9 @@ export const DEFAULT_ROLES = {
     description: 'Recruitment and HR management permissions',
     permissions: [
       // Recruitment management
-      ...Object.values(PERMISSIONS.RECRUITMENT),
+      PERMISSIONS.RECRUITMENT.FULL_ACCESS,
       // Basic content access
       PERMISSIONS.BLOGS.READ,
-      PERMISSIONS.CONTENT_TYPES.READ,
       PERMISSIONS.CATEGORIES.READ,
       // User management
       PERMISSIONS.USERS.READ,
@@ -424,10 +427,15 @@ export const OWNERSHIP_PERMISSIONS = {
     PERMISSIONS.BLOGS.DELETE,
     PERMISSIONS.BLOGS.RESTORE,
   ],
-  CONTENT_TYPES: [
-    PERMISSIONS.CONTENT_TYPES.UPDATE,
-    PERMISSIONS.CONTENT_TYPES.DELETE,
-    PERMISSIONS.CONTENT_TYPES.RESTORE,
+  CATEGORIES: [
+    PERMISSIONS.CATEGORIES.UPDATE,
+    PERMISSIONS.CATEGORIES.DELETE,
+    PERMISSIONS.CATEGORIES.RESTORE,
+  ],
+  TAGS: [
+    PERMISSIONS.TAGS.UPDATE,
+    PERMISSIONS.TAGS.DELETE,
+    PERMISSIONS.TAGS.RESTORE,
   ],
   MEDIA: [
     PERMISSIONS.MEDIA.UPDATE,

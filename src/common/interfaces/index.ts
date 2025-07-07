@@ -1,3 +1,6 @@
+import { Request } from 'express';
+import { User, Role, Permission, Prisma } from '@prisma/client';
+
 // Base interfaces
 export interface IBaseEntity {
   id: number;
@@ -8,14 +11,47 @@ export interface IBaseEntity {
   metaDescription?: string | null;
 }
 
-// Blog related interfaces
-export interface IBlogAuthor {
-  id: number;
+// User related interfaces
+export interface IUser extends IBaseEntity {
   name: string | null;
   email: string;
   avatarUrl?: string | null;
+  roleId?: number | null;
+  role?: IRole | null;
 }
 
+// Role related interfaces
+export interface IRolePermission {
+  id: number;
+  name: string;
+  description?: string | null;
+}
+
+export interface IRole extends IBaseEntity {
+  name: string;
+  description?: string | null;
+  permissions?: IRolePermission[];
+  users?: IUser[];
+  _count?: {
+    users: number;
+    permissions?: number;
+  };
+}
+
+export interface IRoleOption {
+  value: number;
+  label: string;
+}
+
+export interface IRoleStats {
+  totalRoles: number;
+  activeRoles: number;
+  deletedRoles: number;
+  rolesWithUsers: number;
+  rolesWithoutUsers: number;
+}
+
+// Blog related interfaces
 export interface IBlogCategory {
   id: number;
   name: string;
@@ -42,7 +78,7 @@ export interface IBlogComment {
   content: string;
   createdAt: Date;
   updatedAt: Date;
-  author: IBlogAuthor;
+  author: IUser;
   replies?: IBlogComment[];
 }
 
@@ -56,7 +92,7 @@ export interface IBlog extends IBaseEntity {
   title: string;
   slug: string;
   summary?: string | null;
-  content: Prisma.JsonValue; // JSON content
+  content: Prisma.JsonValue;
   imageUrl?: string | null;
   imageTitle?: string | null;
   statusId?: number | null;
@@ -66,9 +102,7 @@ export interface IBlog extends IBaseEntity {
   viewCount: number;
   isFeatured: boolean;
   allowComments: boolean;
-
-  // Relations
-  author: IBlogAuthor;
+  author: IUser;
   category?: IBlogCategory | null;
   status?: IBlogStatus | null;
   tags: IBlogTag[];
@@ -83,8 +117,6 @@ export interface ICategory extends IBaseEntity {
   description?: string | null;
   type: string;
   parentId?: number | null;
-
-  // Relations
   parent?: ICategory | null;
   children?: ICategory[];
 }
@@ -102,35 +134,15 @@ export interface IStatus extends IBaseEntity {
   type: string;
 }
 
-// Role related interfaces
-export interface IRolePermission {
-  id: number;
-  name: string;
-  description?: string | null;
-}
-
-export interface IRole extends IBaseEntity {
-  name: string;
-  description?: string | null;
-  permissions?: IRolePermission[];
-  users?: IBlogAuthor[]; // Reusing IBlogAuthor as basic user info
-  _count?: {
-    users: number;
-    permissions?: number;
-  };
-}
-
-export interface IRoleOption {
-  value: number;
-  label: string;
-}
-
-export interface IRoleStats {
-  totalRoles: number;
-  activeRoles: number;
-  deletedRoles: number;
-  rolesWithUsers: number;
-  rolesWithoutUsers: number;
+// Media interfaces
+export interface IMedia extends IBaseEntity {
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  url: string;
+  uploadedById: number;
+  uploadedBy: IUser;
 }
 
 // Pagination interfaces
@@ -154,24 +166,52 @@ export interface IPaginatedResponse<T> {
   hasPrevious: boolean;
 }
 
-import { Request } from 'express';
-import { User, Role, Permission, Prisma } from '@prisma/client';
-
-// Extend the Prisma User type to include nested relations
+// Authentication interfaces
 export type UserWithRelations = User & {
   role?: Role & {
     permissions?: Permission[];
   };
 };
 
-/**
- * Represents the user object attached to the request after successful authentication.
- * It includes the full user details, their role, and a flattened list of permission names.
- */
 export type AuthenticatedUser = UserWithRelations & {
   permissions: string[];
 };
 
 export interface AuthenticatedRequest extends Request {
   user: AuthenticatedUser;
+}
+
+// Common response interfaces
+export interface IApiResponse<T = any> {
+  success: boolean;
+  data?: T;
+  message?: string;
+  errors?: any[];
+  meta?: {
+    total?: number;
+    page?: number;
+    limit?: number;
+    totalPages?: number;
+    hasNext?: boolean;
+    hasPrevious?: boolean;
+  };
+}
+
+export interface IStatsResponse {
+  total: number;
+  active: number;
+  deleted: number;
+  [key: string]: number;
+}
+
+export interface IOptionResponse {
+  value: number | string;
+  label: string;
+}
+
+// Bulk operation interfaces
+export interface IBulkOperationResult {
+  success: number;
+  failed: number;
+  errors: string[];
 }

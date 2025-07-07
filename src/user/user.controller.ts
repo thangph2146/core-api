@@ -18,6 +18,7 @@ import {
   BadRequestException,
   DefaultValuePipe,
   ParseBoolPipe,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -25,24 +26,26 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiBody,
+  ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { UserService } from './user.service';
 import {
   CreateUserDto,
   UpdateUserDto,
+  AdminUserQueryDto,
   UserQueryDto,
   UserResponseDto,
   UserListResponseDto,
-  UserStatsQueryDto,
-  UserStatsResponseDto,
+  UserStatsDto,
+  UserOptionDto,
+  ChangePasswordDto,
   BulkUserOperationDto,
-  BulkRestoreUsersDto,
   BulkDeleteResponseDto,
   BulkRestoreResponseDto,
   BulkPermanentDeleteResponseDto,
   BulkUpdateResponseDto,
   BulkUpdateUserDto,
-  ChangePasswordDto,
   AdminUserActionDto,
   UserExportDto,
   ForgotPasswordDto,
@@ -56,6 +59,7 @@ import {
 import { EnhancedAuthGuard } from '../common/guards/enhanced-auth.guard';
 import { AuditLogInterceptor } from '../common/interceptors/audit-log.interceptor';
 import { RateLimitInterceptor } from '../common/interceptors/rate-limit.interceptor';
+import { AuthGuard } from '../auth/auth.guard';
 
 /**
  * User Controller - REST API Layer
@@ -111,59 +115,68 @@ export class UserController {
   }
 
   // =============================================================================
-  // CRUD OPERATIONS
+  // MAIN ENDPOINTS
   // =============================================================================
 
-  /**
-   * GET /api/users
-   * Lấy danh sách người dùng với phân trang và lọc
-   */
   @Get()
+  @UseGuards(AuthGuard)
   @CrudPermissions.Users.Read()
   @ApiOperation({
-    summary: 'Lấy danh sách người dùng',
-    description:
-      'Lấy danh sách người dùng với khả năng phân trang, tìm kiếm và lọc',
+    summary: 'Lấy danh sách người dùng (Admin)',
+    description: 'Lấy danh sách tất cả người dùng với phân trang và lọc (dành cho admin)',
   })
+  @ApiQuery({ name: 'page', required: false, description: 'Số trang', example: 1 })
+  @ApiQuery({ name: 'limit', required: false, description: 'Số lượng mỗi trang', example: 10 })
+  @ApiQuery({ name: 'search', required: false, description: 'Từ khóa tìm kiếm' })
+  @ApiQuery({ name: 'roleId', required: false, description: 'Lọc theo vai trò' })
+  @ApiQuery({ name: 'includeDeleted', required: false, description: 'Bao gồm người dùng đã xóa' })
   @ApiResponse({
     status: 200,
-    description: 'Danh sách người dùng được trả về thành công',
+    description: 'Danh sách người dùng',
     type: UserListResponseDto,
   })
-  async findAll(@Query() query: UserQueryDto): Promise<UserListResponseDto> {
-    this.logger.log(
-      `GET /users - Page: ${query.page}, Limit: ${query.limit}, Search: ${query.search}`,
-    );
+  async findAll(@Query() query: AdminUserQueryDto): Promise<UserListResponseDto> {
     return this.userService.findAll(query);
   }
 
-  /**
-   * GET /api/users/deleted
-   * Lấy danh sách người dùng đã xóa
-   */
+  @Get('public')
+  @ApiOperation({
+    summary: 'Lấy danh sách người dùng công khai',
+    description: 'Lấy danh sách người dùng cho public API (không bao gồm người dùng đã xóa)',
+  })
+  @ApiQuery({ name: 'page', required: false, description: 'Số trang', example: 1 })
+  @ApiQuery({ name: 'limit', required: false, description: 'Số lượng mỗi trang', example: 10 })
+  @ApiQuery({ name: 'search', required: false, description: 'Từ khóa tìm kiếm' })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách người dùng công khai',
+    type: UserListResponseDto,
+  })
+  async findPublic(@Query() query: UserQueryDto): Promise<UserListResponseDto> {
+    return this.userService.findPublic(query);
+  }
+
   @Get('deleted')
+  @UseGuards(AuthGuard)
   @CrudPermissions.Users.Read()
   @ApiOperation({
     summary: 'Lấy danh sách người dùng đã xóa',
     description: 'Lấy danh sách người dùng đã bị xóa mềm',
   })
+  @ApiQuery({ name: 'page', required: false, description: 'Số trang', example: 1 })
+  @ApiQuery({ name: 'limit', required: false, description: 'Số lượng mỗi trang', example: 10 })
+  @ApiQuery({ name: 'search', required: false, description: 'Từ khóa tìm kiếm' })
   @ApiResponse({
     status: 200,
-    description: 'Danh sách người dùng đã xóa được trả về thành công',
+    description: 'Danh sách người dùng đã xóa',
     type: UserListResponseDto,
   })
-  async findDeleted(
-    @Query() query: UserQueryDto,
-  ): Promise<UserListResponseDto> {
-    this.logger.log(`GET /users/deleted - Getting deleted users list`);
-    return this.userService.findDeleted(query);
+  async findDeleted(@Query() query: AdminUserQueryDto): Promise<UserListResponseDto> {
+    return this.userService.findAll({ ...query, deleted: true });
   }
 
-  /**
-   * GET /api/users/stats
-   * Lấy thống kê người dùng
-   */
   @Get('stats')
+  @UseGuards(AuthGuard)
   @CrudPermissions.Users.Read()
   @ApiOperation({
     summary: 'Lấy thống kê người dùng',
@@ -171,432 +184,214 @@ export class UserController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Thống kê người dùng được trả về thành công',
-    type: UserStatsResponseDto,
+    description: 'Thống kê người dùng',
+    type: UserStatsDto,
   })
-  async getUserStats(
-    @Query() query: UserStatsQueryDto,
-  ): Promise<UserStatsResponseDto> {
-    this.logger.log(`GET /users/stats - Getting user statistics`);
-    return this.userService.getUserStats(query);
+  async getStats(): Promise<UserStatsDto> {
+    return this.userService.getStats();
+  }
+
+  @Get('options')
+  @UseGuards(AuthGuard)
+  @CrudPermissions.Users.Read()
+  @ApiOperation({
+    summary: 'Lấy danh sách người dùng cho dropdown',
+    description: 'Lấy danh sách người dùng dạng key-value cho dropdown/select',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Danh sách options người dùng',
+    type: [UserOptionDto],
+  })
+  async getOptions(): Promise<UserOptionDto[]> {
+    return this.userService.getOptions();
   }
 
   // =============================================================================
-  // BULK OPERATIONS - MUST BE BEFORE :id ROUTES
+  // BULK OPERATIONS
   // =============================================================================
 
-  /**
-   * POST /api/users/bulk/delete
-   * Bulk soft delete users
-   */
   @Post('bulk/delete')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard)
   @CrudPermissions.Users.BulkDelete()
   @ApiOperation({
     summary: 'Xóa mềm nhiều người dùng',
-    description: 'Xóa mềm nhiều người dùng dựa trên danh sách ID',
+    description: 'Xóa mềm nhiều người dùng cùng lúc (soft delete)',
   })
   @ApiResponse({
     status: 200,
-    description: 'Thao tác xóa mềm hàng loạt hoàn tất',
+    description: 'Xóa thành công',
     type: BulkDeleteResponseDto,
   })
-  async bulkDelete(
-    @Body() body: BulkUserOperationDto,
-  ): Promise<BulkDeleteResponseDto> {
-    this.logger.log(
-      `POST /users/bulk/delete - IDs: ${body.userIds.join(', ')}`,
-    );
+  async bulkDelete(@Body() body: BulkUserOperationDto): Promise<BulkDeleteResponseDto> {
     return this.userService.bulkDelete(body.userIds);
   }
 
-  /**
-   * POST /api/users/bulk/permanent-delete
-   * Xóa vĩnh viễn nhiều người dùng
-   */
-  @Post('bulk/permanent-delete')
-  @CrudPermissions.Users.PermanentDelete()
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Xóa vĩnh viễn nhiều người dùng',
-    description:
-      'Xóa vĩnh viễn nhiều người dùng và tất cả dữ liệu liên quan của họ.',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Số người dùng đã được xóa vĩnh viễn thành công',
-    type: BulkPermanentDeleteResponseDto,
-  })
-  async bulkPermanentDelete(
-    @Body() body: BulkUserOperationDto,
-  ): Promise<BulkPermanentDeleteResponseDto> {
-    this.logger.log(
-      `POST /users/bulk/permanent-delete - IDs: ${body.userIds.join(', ')}`,
-    );
-    return this.userService.bulkPermanentDelete(body.userIds);
-  }
-
-  /**
-   * POST /api/users/bulk/restore
-   * Khôi phục nhiều người dùng đã xóa
-   */
   @Post('bulk/restore')
   @HttpCode(HttpStatus.OK)
-  @CrudPermissions.Users.Restore()
+  @UseGuards(AuthGuard)
+  @CrudPermissions.Users.BulkRestore()
   @ApiOperation({
     summary: 'Khôi phục nhiều người dùng',
     description: 'Khôi phục nhiều người dùng đã bị xóa mềm',
   })
   @ApiResponse({
     status: 200,
-    description: 'Số người dùng đã được khôi phục thành công',
+    description: 'Khôi phục thành công',
     type: BulkRestoreResponseDto,
   })
-  async bulkRestore(
-    @Body() body: BulkRestoreUsersDto,
-  ): Promise<BulkRestoreResponseDto> {
-    this.logger.log(
-      `POST /users/bulk/restore - Restoring user IDs: ${body.userIds.join(', ')}`,
-    );
+  async bulkRestore(@Body() body: BulkUserOperationDto): Promise<BulkRestoreResponseDto> {
     return this.userService.bulkRestore(body.userIds);
   }
 
-  /**
-   * PUT /api/users/bulk/update
-   * Cập nhật nhiều người dùng
-   */
-  @Put('bulk/update')
+  @Post('bulk/permanent-delete')
   @HttpCode(HttpStatus.OK)
-  @CrudPermissions.Users.FullAccess()
+  @UseGuards(AuthGuard)
+  @CrudPermissions.Users.BulkPermanentDelete()
   @ApiOperation({
-    summary: 'Cập nhật hàng loạt người dùng',
-    description:
-      'Cập nhật thông tin cho nhiều người dùng cùng lúc, ví dụ: thay đổi role',
+    summary: 'Xóa vĩnh viễn nhiều người dùng',
+    description: 'Xóa vĩnh viễn nhiều người dùng khỏi hệ thống',
   })
   @ApiResponse({
     status: 200,
-    description: 'Thao tác cập nhật hàng loạt hoàn tất',
-    type: BulkUpdateResponseDto,
+    description: 'Xóa vĩnh viễn thành công',
+    type: BulkPermanentDeleteResponseDto,
   })
-  async bulkUpdate(
-    @Body() body: BulkUpdateUserDto,
-  ): Promise<BulkUpdateResponseDto> {
-    this.logger.log(
-      `PUT /users/bulk/update - User IDs: ${body.userIds.join(', ')}`,
-    );
-    return this.userService.bulkUpdate(body.userIds, body.updateData);
+  async bulkPermanentDelete(@Body() body: BulkUserOperationDto): Promise<BulkPermanentDeleteResponseDto> {
+    return this.userService.bulkPermanentDelete(body.userIds);
   }
 
   // =============================================================================
-  // SINGLE USER OPERATIONS - AFTER BULK OPERATIONS
+  // INDIVIDUAL OPERATIONS
   // =============================================================================
 
-  /**
-   * GET /api/users/:id
-   * Lấy thông tin chi tiết một người dùng
-   */
   @Get(':id')
+  @UseGuards(AuthGuard)
   @CrudPermissions.Users.Read()
   @ApiOperation({
-    summary: 'Lấy thông tin người dùng',
-    description: 'Lấy thông tin chi tiết của một người dùng theo ID',
+    summary: 'Lấy thông tin người dùng theo ID',
+    description: 'Lấy thông tin chi tiết của một người dùng',
   })
+  @ApiParam({ name: 'id', description: 'ID người dùng', type: Number })
   @ApiResponse({
     status: 200,
-    description: 'Thông tin người dùng được trả về thành công',
+    description: 'Thông tin người dùng',
     type: UserResponseDto,
   })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy người dùng',
-  })
-  async findOne(
-    @Param('id', ParseIntPipe) id: number,
-    @Query('includeDeleted', new DefaultValuePipe(false), ParseBoolPipe)
-    includeDeleted: boolean,
-  ): Promise<UserResponseDto> {
-    this.logger.log(
-      `GET /users/${id} - Getting user details, includeDeleted: ${includeDeleted}`,
-    );
-    return this.userService.findOne(id, includeDeleted);
+  @ApiResponse({ status: 404, description: 'Không tìm thấy người dùng' })
+  async findOne(@Param('id', ParseIntPipe) id: number): Promise<UserResponseDto> {
+    const user = await this.userService.findOne(id);
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy người dùng');
+    }
+    return user;
   }
 
-  /**
-   * GET /api/users/email/:email
-   * Tìm người dùng theo email
-   */
-  @Get('email/:email')
-  @CrudPermissions.Users.Read()
-  @ApiOperation({
-    summary: 'Tìm người dùng theo email',
-    description: 'Lấy thông tin người dùng dựa trên địa chỉ email',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Thông tin người dùng được trả về thành công',
-    type: UserResponseDto,
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy người dùng với email này',
-  })
-  async findByEmail(@Param('email') email: string): Promise<UserResponseDto> {
-    this.logger.log(`GET /users/email/${email} - Finding user by email`);
-    return this.userService.findByEmail(email);
-  }
-
-  /**
-   * POST /api/users
-   * Tạo người dùng mới
-   */
   @Post()
+  @UseGuards(AuthGuard)
   @CrudPermissions.Users.Create()
   @ApiOperation({
     summary: 'Tạo người dùng mới',
-    description:
-      'Tạo một người dùng mới trong hệ thống với thông tin cơ bản và tùy chọn profile',
+    description: 'Tạo một người dùng mới trong hệ thống',
   })
   @ApiResponse({
     status: 201,
-    description: 'Người dùng được tạo thành công',
+    description: 'Tạo người dùng thành công',
     type: UserResponseDto,
   })
-  @ApiResponse({
-    status: 400,
-    description: 'Dữ liệu đầu vào không hợp lệ',
-  })
-  @ApiResponse({
-    status: 409,
-    description: 'Email đã được sử dụng',
-  })
+  @ApiResponse({ status: 400, description: 'Dữ liệu không hợp lệ' })
+  @ApiResponse({ status: 409, description: 'Email đã tồn tại' })
   async create(@Body() createUserDto: CreateUserDto): Promise<UserResponseDto> {
-    this.logger.log(`POST /users - Creating new user: ${createUserDto.email}`);
     return this.userService.create(createUserDto);
   }
 
-  /**
-   * PUT /api/users/:id
-   * Cập nhật thông tin người dùng
-   */
   @Patch(':id')
+  @UseGuards(AuthGuard)
   @CrudPermissions.Users.Update()
   @ApiOperation({
     summary: 'Cập nhật thông tin người dùng',
-    description:
-      'Cập nhật thông tin của một người dùng, bao gồm cả profile nếu có',
+    description: 'Cập nhật thông tin của một người dùng',
   })
+  @ApiParam({ name: 'id', description: 'ID người dùng', type: Number })
   @ApiResponse({
     status: 200,
-    description: 'Người dùng được cập nhật thành công',
+    description: 'Cập nhật thành công',
     type: UserResponseDto,
   })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy người dùng',
-  })
-  @ApiResponse({
-    status: 409,
-    description: 'Email đã được sử dụng bởi người dùng khác',
-  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy người dùng' })
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
   ): Promise<UserResponseDto> {
-    this.logger.log(`PUT /users/${id} - Updating user`);
     return this.userService.update(id, updateUserDto);
   }
 
-  /**
-   * POST /api/users/:id/change-password
-   * Thay đổi mật khẩu
-   */
   @Post(':id/change-password')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard)
   @CrudPermissions.Users.Update()
   @ApiOperation({
     summary: 'Thay đổi mật khẩu',
-    description: 'Thay đổi mật khẩu cho một người dùng',
+    description: 'Thay đổi mật khẩu của người dùng',
   })
-  @ApiResponse({
-    status: 204,
-    description: 'Mật khẩu được thay đổi thành công',
-  })
-  @ApiResponse({
-    status: 400,
-    description: 'Mật khẩu hiện tại không đúng hoặc mật khẩu mới không hợp lệ',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy người dùng',
-  })
+  @ApiParam({ name: 'id', description: 'ID người dùng', type: Number })
+  @ApiResponse({ status: 200, description: 'Thay đổi mật khẩu thành công' })
+  @ApiResponse({ status: 400, description: 'Mật khẩu hiện tại không chính xác' })
   async changePassword(
     @Param('id', ParseIntPipe) id: number,
     @Body() changePasswordDto: ChangePasswordDto,
-  ): Promise<void> {
-    this.logger.log(`POST /users/${id}/change-password - Changing password`);
-    return this.userService.changePassword(id, changePasswordDto);
+  ): Promise<{ message: string }> {
+    await this.userService.changePassword(id, changePasswordDto);
+    return { message: 'Password changed successfully' };
   }
 
-  /**
-   * DELETE /api/users/:id
-   * Xóa mềm người dùng
-   */
   @Delete(':id')
+  @UseGuards(AuthGuard)
   @CrudPermissions.Users.Delete()
   @ApiOperation({
-    summary: 'Xóa người dùng',
-    description:
-      'Đánh dấu người dùng là đã xóa (soft delete). Dữ liệu vẫn còn trong DB nhưng không thể truy cập.',
+    summary: 'Xóa mềm người dùng',
+    description: 'Xóa mềm một người dùng (có thể khôi phục)',
   })
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    this.logger.log(`DELETE /users/${id} - Soft deleting user`);
-    return this.userService.remove(id);
+  @ApiParam({ name: 'id', description: 'ID người dùng', type: Number })
+  @ApiResponse({ status: 200, description: 'Xóa thành công' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy người dùng' })
+  async remove(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
+    await this.userService.remove(id);
+    return { message: 'User deleted successfully' };
   }
 
-  /**
-   * POST /api/users/:id/restore
-   * Khôi phục người dùng đã xóa
-   */
   @Post(':id/restore')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard)
   @CrudPermissions.Users.Restore()
   @ApiOperation({
     summary: 'Khôi phục người dùng',
     description: 'Khôi phục một người dùng đã bị xóa mềm',
   })
+  @ApiParam({ name: 'id', description: 'ID người dùng', type: Number })
   @ApiResponse({
     status: 200,
-    description: 'Người dùng được khôi phục thành công',
+    description: 'Khôi phục thành công',
     type: UserResponseDto,
   })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy người dùng đã xóa',
-  })
-  async restore(
-    @Param('id', ParseIntPipe) id: number,
-  ): Promise<UserResponseDto> {
-    this.logger.log(`POST /users/${id}/restore - Khôi phục cá nhân`);
+  @ApiResponse({ status: 404, description: 'Không tìm thấy người dùng' })
+  async restore(@Param('id', ParseIntPipe) id: number): Promise<UserResponseDto> {
     return this.userService.restore(id);
   }
 
-  /**
-   * DELETE /api/users/:id/permanent
-   * Xóa vĩnh viễn người dùng
-   */
   @Delete(':id/permanent')
+  @UseGuards(AuthGuard)
   @CrudPermissions.Users.PermanentDelete()
   @ApiOperation({
     summary: 'Xóa vĩnh viễn người dùng',
-    description: 'Xóa vĩnh viễn một người dùng (không thể khôi phục)',
+    description: 'Xóa vĩnh viễn một người dùng khỏi hệ thống',
   })
-  @ApiResponse({
-    status: 204,
-    description: 'Người dùng được xóa vĩnh viễn',
-  })
-  @ApiResponse({
-    status: 404,
-    description: 'Không tìm thấy người dùng',
-  })
-  async permanentDelete(@Param('id', ParseIntPipe) id: number): Promise<void> {
-    this.logger.log(`DELETE /users/${id}/permanent - Xóa vĩnh viễn`);
-    return this.userService.permanentDelete(id);
-  }
-
-  /**
-   * POST /api/users/:id/admin-action
-   * Thực hiện hành động quản trị trên người dùng
-   */
-  @Post(':id/admin-action')
-  @CrudPermissions.Users.Update()
-  @ApiOperation({
-    summary: 'Thực hiện hành động quản trị trên người dùng',
-    description:
-      'Thực hiện các hành động như suspend, activate, verify email...',
-  })
-  @ApiResponse({
-    status: 200,
-    description: 'Hành động quản trị được thực hiện thành công',
-    type: UserResponseDto,
-  })
-  async adminAction(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() actionDto: AdminUserActionDto,
-  ): Promise<UserResponseDto> {
-    this.logger.log(
-      `POST /users/${id}/admin-action - Action: ${actionDto.action}`,
-    );
-    return this.userService.adminAction(id, actionDto);
-  }
-
-  // =============================================================================
-  // PASSWORD RESET FLOW
-  // =============================================================================
-
-  /**
-   * POST /api/users/forgot-password
-   * Yêu cầu reset mật khẩu
-   */
-  @Post('forgot-password')
-  @Public()
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({
-    summary: 'Quên mật khẩu',
-    description: 'Gửi yêu cầu reset mật khẩu cho một email',
-  })
-  @ApiResponse({
-    status: 204,
-    description: 'Yêu cầu đã được xử lý (email sẽ được gửi nếu tồn tại)',
-  })
-  async forgotPassword(
-    @Body() forgotPasswordDto: ForgotPasswordDto,
-  ): Promise<void> {
-    this.logger.log(
-      `POST /users/forgot-password - Email: ${forgotPasswordDto.email}`,
-    );
-    return this.userService.forgotPassword(forgotPasswordDto);
-  }
-
-  /**
-   * POST /api/users/reset-password
-   * Reset mật khẩu bằng token
-   */
-  @Post('reset-password')
-  @Public()
-  @HttpCode(HttpStatus.NO_CONTENT)
-  @ApiOperation({
-    summary: 'Reset mật khẩu',
-    description: 'Đặt lại mật khẩu bằng token đã nhận được qua email',
-  })
-  @ApiResponse({
-    status: 204,
-    description: 'Mật khẩu đã được reset thành công',
-  })
-  async resetPassword(
-    @Body() resetPasswordDto: ResetPasswordDto,
-  ): Promise<void> {
-    this.logger.log(`POST /users/reset-password - Bắt đầu quá trình reset`);
-    return this.userService.resetPassword(resetPasswordDto);
-  }
-
-  // =============================================================================
-  // HEALTH CHECK
-  // =============================================================================
-
-  /**
-   * GET /api/users/health
-   * Kiểm tra "sức khỏe" của controller
-   */
-  @Get('health')
-  @Public()
-  @ApiOperation({
-    summary: 'Kiểm tra sức khỏe',
-    description: 'Kiểm tra xem User service có đang hoạt động hay không',
-  })
-  async healthCheck(): Promise<{ status: string; timestamp: string }> {
-    return {
-      status: 'ok',
-      timestamp: new Date().toISOString(),
-    };
+  @ApiParam({ name: 'id', description: 'ID người dùng', type: Number })
+  @ApiResponse({ status: 200, description: 'Xóa vĩnh viễn thành công' })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy người dùng' })
+  async permanentDelete(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
+    await this.userService.permanentDelete(id);
+    return { message: 'User permanently deleted successfully' };
   }
 }

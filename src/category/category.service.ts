@@ -9,8 +9,13 @@ import {
 	CreateCategoryDto,
 	UpdateCategoryDto,
 	CategoryQueryDto,
+	AdminCategoryQueryDto,
 	CategoryOptionDto,
+	CategoryListResponseDto,
+	CategoryMetaResponseDto,
+	CategoryType,
 } from './dto/category.dto';
+import { IPaginatedResponse } from 'src/common/interfaces';
 
 @Injectable()
 export class CategoryService {
@@ -33,8 +38,8 @@ export class CategoryService {
 		});
 	}
 
-	async findAll(query: CategoryQueryDto) {
-		const { page = 1, limit = 10, type, search, deleted = false } = query;
+	async findAll(query: AdminCategoryQueryDto): Promise<CategoryListResponseDto> {
+		const { page = 1, limit = 10, type, search, deleted = false, sortBy = 'createdAt', sortOrder = 'desc' } = query;
 		const skip = (page - 1) * limit;
 
 		const where: Prisma.CategoryWhereInput = {
@@ -57,7 +62,7 @@ export class CategoryService {
 				where,
 				skip,
 				take: limit,
-				orderBy: { createdAt: 'desc' },
+				orderBy: { [sortBy]: sortOrder },
 				include: {
 					_count: {
 						select: {
@@ -71,13 +76,17 @@ export class CategoryService {
 			this.prisma.category.count({ where }),
 		]);
 
+		const totalPages = Math.ceil(total / limit);
+
 		return {
-			data: categories,
+			data: categories as any, // Type assertion to handle the complex type mapping
 			meta: {
 				total,
 				page,
 				limit,
-				totalPages: Math.ceil(total / limit),
+				totalPages,
+				hasNext: page < totalPages,
+				hasPrevious: page > 1,
 			},
 		};
 	}
@@ -151,7 +160,68 @@ export class CategoryService {
 		await this.prisma.category.delete({ where: { id } });
 	}
 
-	async getCategoryOptions(type?: string): Promise<CategoryOptionDto[]> {
+	async findPublic(query: CategoryQueryDto): Promise<CategoryListResponseDto> {
+		const publicQuery = { ...query, deleted: false };
+		return this.findAll(publicQuery as AdminCategoryQueryDto);
+	}
+
+	async getStats(): Promise<any> {
+		const [
+			total,
+			blogCategories,
+			projectCategories,
+			serviceCategories,
+			recruitmentCategories,
+			deleted,
+		] = await this.prisma.$transaction([
+			this.prisma.category.count({ where: { deletedAt: null } }),
+			this.prisma.category.count({ where: { deletedAt: null, type: 'BLOG' } }),
+			this.prisma.category.count({ where: { deletedAt: null, type: 'PROJECT' } }),
+			this.prisma.category.count({ where: { deletedAt: null, type: 'SERVICE' } }),
+			this.prisma.category.count({ where: { deletedAt: null, type: 'RECRUITMENT' } }),
+			this.prisma.category.count({ where: { deletedAt: { not: null } } }),
+		]);
+
+		const now = new Date();
+		const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+		const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
+		const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+		const [thisMonth, thisWeek, today] = await this.prisma.$transaction([
+			this.prisma.category.count({
+				where: {
+					deletedAt: null,
+					createdAt: { gte: startOfMonth },
+				},
+			}),
+			this.prisma.category.count({
+				where: {
+					deletedAt: null,
+					createdAt: { gte: startOfWeek },
+				},
+			}),
+			this.prisma.category.count({
+				where: {
+					deletedAt: null,
+					createdAt: { gte: startOfDay },
+				},
+			}),
+		]);
+
+		return {
+			total,
+			blogCategories,
+			projectCategories,
+			serviceCategories,
+			recruitmentCategories,
+			deleted,
+			thisMonth,
+			thisWeek,
+			today,
+		};
+	}
+
+	async getOptions(type?: string): Promise<CategoryOptionDto[]> {
 		const where: Prisma.CategoryWhereInput = {
 			deletedAt: null,
 		};
@@ -166,6 +236,8 @@ export class CategoryService {
 				id: true,
 				name: true,
 				type: true,
+				slug: true,
+				parentId: true,
 			},
 			orderBy: {
 				name: 'asc',
@@ -176,6 +248,59 @@ export class CategoryService {
 			value: category.id,
 			label: category.name,
 			type: category.type,
+			slug: category.slug,
+			parentId: category.parentId || undefined,
 		}));
+	}
+
+	async bulkDelete(categoryIds: number[]): Promise<any> {
+		const result = await this.prisma.category.updateMany({
+			where: {
+				id: { in: categoryIds },
+				deletedAt: null,
+			},
+			data: { deletedAt: new Date() },
+		});
+
+		return {
+			success: true,
+			affected: result.count,
+			message: `Successfully deleted ${result.count} categories`,
+		};
+	}
+
+	async bulkRestore(categoryIds: number[]): Promise<any> {
+		const result = await this.prisma.category.updateMany({
+			where: {
+				id: { in: categoryIds },
+				deletedAt: { not: null },
+			},
+			data: { deletedAt: null },
+		});
+
+		return {
+			success: true,
+			affected: result.count,
+			message: `Successfully restored ${result.count} categories`,
+		};
+	}
+
+	async bulkPermanentDelete(categoryIds: number[]): Promise<any> {
+		const result = await this.prisma.category.deleteMany({
+			where: {
+				id: { in: categoryIds },
+				deletedAt: { not: null },
+			},
+		});
+
+		return {
+			success: true,
+			affected: result.count,
+			message: `Successfully permanently deleted ${result.count} categories`,
+		};
+	}
+
+	async getCategoryOptions(type?: string): Promise<CategoryOptionDto[]> {
+		return this.getOptions(type);
 	}
 }

@@ -10,6 +10,47 @@ import * as DOMPurify from 'isomorphic-dompurify';
 export class SanitizationPipe implements PipeTransform<any> {
   private readonly logger = new Logger(SanitizationPipe.name);
 
+  // Cache for compiled regex patterns
+  private static readonly SQL_PATTERNS = [
+    /(\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b)/gi,
+    /(\b(or|and)\s+\d+\s*=\s*\d+)/gi,
+    /(;\s*--)/gi,
+    /(\b(xp_|sp_)\w+)/gi,
+  ];
+
+  private static readonly SCRIPT_PATTERNS = [
+    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+    /<script[^>]*>.*?<\/script>/gi,
+    /<script[^>]*>/gi,
+    /<\/script>/gi,
+    /javascript:/gi,
+    /on\w+\s*=/gi,
+    /<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi,
+    /<object[^>]*>.*?<\/object>/gi,
+    /<embed[^>]*>/gi,
+    /<applet[^>]*>.*?<\/applet>/gi,
+    /<meta[^>]*>/gi,
+    /<link[^>]*>/gi,
+  ];
+
+  private static readonly PATH_PATTERNS = [
+    /\.\.\//g,
+    /\.\.\\+/g,
+    /%2e%2e%2f/gi,
+    /%2e%2e%5c/gi,
+  ];
+
+  private static readonly DANGEROUS_KEYS = new Set([
+    '__proto__',
+    'constructor',
+    'prototype',
+    'eval',
+    'function',
+    'require',
+    'process',
+    'global',
+  ]);
+
   async transform(value: any, { metatype }: ArgumentMetadata) {
     // Skip validation for basic types and let ValidationPipe handle DTO validation
     if (!metatype || !this.toValidate(metatype)) {
@@ -87,79 +128,48 @@ export class SanitizationPipe implements PipeTransform<any> {
   }
 
   private preventSQLInjection(str: string): string {
-    const sqlPatterns = [
-      /(\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b)/gi,
-      /(\b(or|and)\s+\d+\s*=\s*\d+)/gi,
-      /(;\s*--)/gi,
-      /(\b(xp_|sp_)\w+)/gi,
-    ];
-
     let cleaned = str;
-    sqlPatterns.forEach((pattern) => {
+    
+    for (const pattern of SanitizationPipe.SQL_PATTERNS) {
       if (pattern.test(cleaned)) {
         this.logger.warn(`Potential SQL injection detected`);
         cleaned = cleaned.replace(pattern, '');
       }
-    });
+    }
 
     return cleaned;
   }
 
   private preventScriptInjection(str: string): string {
-    const scriptPatterns = [
-      /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
-      /<script[^>]*>.*?<\/script>/gi,
-      /<script[^>]*>/gi,
-      /<\/script>/gi,
-      /javascript:/gi,
-      /on\w+\s*=/gi,
-      /<iframe\b[^<]*(?:(?!<\/iframe>)<[^<]*)*<\/iframe>/gi,
-      /<object[^>]*>.*?<\/object>/gi,
-      /<embed[^>]*>/gi,
-      /<applet[^>]*>.*?<\/applet>/gi,
-      /<meta[^>]*>/gi,
-      /<link[^>]*>/gi,
-    ];
-
     let cleaned = str;
-    scriptPatterns.forEach((pattern) => {
+    
+    for (const pattern of SanitizationPipe.SCRIPT_PATTERNS) {
       if (pattern.test(cleaned)) {
-        this.logger.warn(`Potential script injection detected: ${pattern}`);
+        this.logger.warn(`Potential script injection detected`);
         cleaned = cleaned.replace(pattern, '');
       }
-    });
+    }
 
     return cleaned;
   }
 
   private preventPathTraversal(str: string): string {
-    const pathPatterns = [/\.\.\//g, /\.\.\\+/g, /%2e%2e%2f/gi, /%2e%2e%5c/gi];
-
     let cleaned = str;
-    pathPatterns.forEach((pattern) => {
+    
+    for (const pattern of SanitizationPipe.PATH_PATTERNS) {
       if (pattern.test(cleaned)) {
         this.logger.warn(`Potential path traversal detected`);
         cleaned = cleaned.replace(pattern, '');
       }
-    });
+    }
 
     return cleaned;
   }
 
   private isDangerousKey(key: string): boolean {
-    const dangerousKeys = [
-      '__proto__',
-      'constructor',
-      'prototype',
-      'eval',
-      'function',
-      'require',
-      'process',
-      'global',
-    ];
-
-    return dangerousKeys.some((dangerous) =>
-      key.toLowerCase().includes(dangerous.toLowerCase()),
+    const lowerKey = key.toLowerCase();
+    return Array.from(SanitizationPipe.DANGEROUS_KEYS).some((dangerous) =>
+      lowerKey.includes(dangerous.toLowerCase()),
     );
   }
 }

@@ -8,18 +8,21 @@ import { Role, Prisma } from '@prisma/client';
 import {
   CreateRoleDto,
   UpdateRoleDto,
+  AdminRoleQueryDto,
   RoleQueryDto,
   RoleOptionDto,
   RoleStatsDto,
   BulkDeleteResponseDto,
   BulkRestoreResponseDto,
   BulkPermanentDeleteResponseDto,
+  RoleListResponseDto,
 } from './dto/role.dto';
 
 @Injectable()
 export class RoleService {
   constructor(private prisma: PrismaService) {}
-  async findAll(query: RoleQueryDto) {
+  
+  async findAll(query: AdminRoleQueryDto): Promise<RoleListResponseDto> {
     const {
       page = 1,
       limit = 10,
@@ -100,7 +103,13 @@ export class RoleService {
     const totalPages = Math.ceil(total / limitNum);
 
     return {
-      data: roles,
+      data: roles.map(role => ({
+        ...role,
+        description: role.description ?? undefined,
+        deletedAt: role.deletedAt ?? undefined,
+        metaTitle: role.metaTitle ?? undefined,
+        metaDescription: role.metaDescription ?? undefined,
+      })),
       meta: {
         total,
         page: pageNum,
@@ -154,7 +163,7 @@ export class RoleService {
     });
   }
 
-  async findWithPermissions(id: number): Promise<Role | null> {
+  async findWithPermissions(id: number): Promise<any> {
     return this.prisma.role.findFirst({
       where: {
         id,
@@ -181,7 +190,7 @@ export class RoleService {
       },
     });
   }
-  async create(createRoleDto: CreateRoleDto): Promise<Role> {
+  async create(createRoleDto: CreateRoleDto): Promise<any> {
     const { permissionIds, ...roleData } = createRoleDto;
 
     // Check if role name already exists
@@ -220,7 +229,7 @@ export class RoleService {
     });
   }
 
-  async update(id: number, updateRoleDto: UpdateRoleDto): Promise<Role> {
+  async update(id: number, updateRoleDto: UpdateRoleDto): Promise<any> {
     const role = await this.findById(id);
     if (!role) {
       throw new NotFoundException('Role not found');
@@ -268,7 +277,7 @@ export class RoleService {
       },
     });
   }
-  async delete(id: number): Promise<Role> {
+  async delete(id: number): Promise<any> {
     const role = await this.findById(id);
     if (!role) {
       throw new NotFoundException('Role not found');
@@ -448,7 +457,7 @@ export class RoleService {
     };
   }
 
-  async restore(id: number): Promise<Role> {
+  async restore(id: number): Promise<any> {
     const role = await this.prisma.role.findUnique({
       where: { id },
     });

@@ -106,7 +106,8 @@ async function main() {
 					{ name: PERMISSIONS.USERS.FULL_ACCESS },
 					{ name: PERMISSIONS.ROLES.FULL_ACCESS },
 					{ name: PERMISSIONS.BLOGS.FULL_ACCESS },
-					{ name: PERMISSIONS.CONTENT_TYPES.FULL_ACCESS },
+					{ name: PERMISSIONS.CATEGORIES.FULL_ACCESS },
+					{ name: PERMISSIONS.TAGS.FULL_ACCESS },
 					{ name: PERMISSIONS.MEDIA.FULL_ACCESS },
 					{ name: PERMISSIONS.RECRUITMENT.FULL_ACCESS },
 					{ name: PERMISSIONS.SETTINGS.FULL_ACCESS },
@@ -126,8 +127,10 @@ async function main() {
 					{ name: PERMISSIONS.BLOGS.READ },
 					{ name: PERMISSIONS.BLOGS.UPDATE },
 					{ name: PERMISSIONS.BLOGS.DELETE },
-					{ name: PERMISSIONS.CONTENT_TYPES.CREATE },
-					{ name: PERMISSIONS.CONTENT_TYPES.READ },
+					{ name: PERMISSIONS.CATEGORIES.CREATE },
+					{ name: PERMISSIONS.CATEGORIES.READ },
+					{ name: PERMISSIONS.TAGS.CREATE },
+					{ name: PERMISSIONS.TAGS.READ },
 					{ name: PERMISSIONS.MEDIA.CREATE },
 					{ name: PERMISSIONS.MEDIA.READ },
 					{ name: PERMISSIONS.MEDIA.UPDATE },
@@ -159,8 +162,7 @@ async function main() {
 			permissions: {
 				connect: [
 					{ name: PERMISSIONS.BLOGS.READ },
-					{ name: PERMISSIONS.BLOGS.LIKE },
-					{ name: PERMISSIONS.BLOGS.BOOKMARK },
+					// Note: LIKE and BOOKMARK permissions might be added later
 					{ name: PERMISSIONS.COMMENTS.CREATE },
 					{ name: PERMISSIONS.COMMENTS.READ },
 					{ name: PERMISSIONS.COMMENTS.UPDATE },

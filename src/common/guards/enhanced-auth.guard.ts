@@ -248,7 +248,7 @@ export class EnhancedAuthGuard implements CanActivate {
 
     try {
       switch (resourceType) {
-        case 'blog':
+        case 'blogs':
           const blog = await this.prisma.blog.findUnique({
             where: { id: parseInt(resourceId) },
             select: { authorId: true },

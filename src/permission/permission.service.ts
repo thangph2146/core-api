@@ -11,7 +11,7 @@ import { Permission, Prisma } from '@prisma/client';
 import {
   CreatePermissionDto,
   UpdatePermissionDto,
-  PermissionQueryDto,
+  AdminPermissionQueryDto,
   PermissionStatsDto,
   PermissionResponseDto,
   PermissionListResponseDto,
@@ -44,10 +44,7 @@ export class PermissionService {
   /**
    * Lấy danh sách permissions với phân trang và lọc
    */
-  /**
-   * Lấy danh sách permissions với phân trang và lọc
-   */
-  async findAll(query: PermissionQueryDto): Promise<PermissionListResponseDto> {
+  async findAll(query: AdminPermissionQueryDto): Promise<PermissionListResponseDto> {
     this.logger.debug(`Finding permissions with query: ${JSON.stringify(query)}`);
 
     const {
@@ -579,7 +576,7 @@ export class PermissionService {
   /**
    * Lấy options permissions
    */
-  async getPermissionOptions(): Promise<PermissionOptionDto[]> {
+  async getPermissionOptions(): Promise<PermissionGroupDto[]> {
     const permissions = await this.prisma.permission.findMany({
       where: { deletedAt: null, name: { not: 'admin:full_access' } },
       select: {
@@ -591,9 +588,23 @@ export class PermissionService {
       },
     });
 
-    return permissions.map(permission => ({
-      value: permission.id,
-      label: permission.name,
+    // Nhóm permissions theo resource (phần trước dấu ':')
+    const grouped = permissions.reduce((acc, permission) => {
+      const [resource] = permission.name.split(':');
+      if (!acc[resource]) {
+        acc[resource] = [];
+      }
+      acc[resource].push({
+        value: permission.id,
+        label: permission.name,
+      });
+      return acc;
+    }, {} as Record<string, PermissionOptionDto[]>);
+
+    // Chuyển đổi thành PermissionGroupDto[]
+    return Object.entries(grouped).map(([group, options]) => ({
+      group,
+      options,
     }));
   }
 

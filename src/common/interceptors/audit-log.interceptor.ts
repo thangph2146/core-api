@@ -81,10 +81,14 @@ export class AuditLogInterceptor implements NestInterceptor {
       /\/api\/users/,
       /\/api\/roles/,
       /\/api\/permissions/,
-      /\/api\/auth\/signin/,
-      /\/api\/auth\/signout/,
+      /\/api\/auth\/login/,
+      /\/api\/auth\/logout/,
       /\/api\/blogs.*\/delete/,
       /\/api\/blogs.*\/restore/,
+      /\/api\/categories.*\/delete/,
+      /\/api\/categories.*\/restore/,
+      /\/api\/tags.*\/delete/,
+      /\/api\/tags.*\/restore/,
       /\/api\/media.*\/delete/,
       /\/api\/recruitment/,
       /\/api\/settings/,
@@ -100,17 +104,17 @@ export class AuditLogInterceptor implements NestInterceptor {
   }
 
   private extractAction(method: string, url: string): string {
-    // Handle bulk operations with specific route names
-    if (url.includes('/bulk/restore-users')) return 'bulk_restore_users';
+    // Handle bulk operations
     if (url.includes('/bulk/restore')) return 'bulk_restore';
     if (url.includes('/bulk/delete')) return 'bulk_delete';
     if (url.includes('/bulk/permanent-delete')) return 'bulk_permanent_delete';
     
     // Handle specific patterns
     if (url.includes('/restore')) return 'restore';
+    if (url.includes('/permanent-delete')) return 'permanent_delete';
     if (url.includes('/delete')) return 'delete';
-    if (url.includes('/signin')) return 'signin';
-    if (url.includes('/signout')) return 'signout';
+    if (url.includes('/login')) return 'login';
+    if (url.includes('/logout')) return 'logout';
     if (url.includes('/assign-role')) return 'assign_role';
     if (url.includes('/upload')) return 'upload';
 
@@ -142,8 +146,7 @@ export class AuditLogInterceptor implements NestInterceptor {
       media: 'media',
       recruitment: 'recruitment',
       services: 'service',
-      contacts: 'contact',
-      newsletter: 'newsletter',
+      status: 'status',
       auth: 'auth',
     };
 
@@ -221,44 +224,49 @@ export class AuditLogInterceptor implements NestInterceptor {
       // Add resource ID or bulk info
       if (auditData.resourceId) {
         logMessage += ` (ID: ${auditData.resourceId})`;
-      } else if (auditData.action.startsWith('bulk_') && auditData.details?.body?.userIds) {
-        const count = Array.isArray(auditData.details.body.userIds) 
-          ? auditData.details.body.userIds.length 
-          : 1;
-        logMessage += ` (${count} items)`;
+      } else if (auditData.action.startsWith('bulk_')) {
+        const bulkData = auditData.details?.body;
+        if (bulkData?.userIds || bulkData?.roleIds || bulkData?.blogIds || bulkData?.categoryIds || bulkData?.tagIds) {
+          const ids = bulkData.userIds || bulkData.roleIds || bulkData.blogIds || bulkData.categoryIds || bulkData.tagIds;
+          const count = Array.isArray(ids) ? ids.length : 1;
+          logMessage += ` (${count} items)`;
+        }
       }
       
       logMessage += ` - ${auditData.status} (${auditData.duration}ms)`;
       
-      // Log to console for development
-      this.logger.log(logMessage);
+      // Log to console
+      if (auditData.status === 'success') {
+        this.logger.log(logMessage);
+      } else {
+        this.logger.error(logMessage);
+      }
 
       // Enhanced logging for production
-      const logEntry = {
-        timestamp: auditData.timestamp.toISOString(),
-        user: {
-          id: auditData.userId,
-          email: auditData.userEmail,
-        },
-        action: {
-          type: auditData.action,
-          resource: auditData.resource,
-          resourceId: auditData.resourceId,
-        },
-        request: {
-          ipAddress: auditData.ipAddress,
-          userAgent: auditData.userAgent,
-        },
-        result: {
-          status: auditData.status,
-          duration: auditData.duration,
-          errorMessage: auditData.errorMessage,
-        },
-        details: auditData.details,
-      };
-
-      // Write to audit log
       if (process.env.NODE_ENV === 'production') {
+        const logEntry = {
+          timestamp: auditData.timestamp.toISOString(),
+          user: {
+            id: auditData.userId,
+            email: auditData.userEmail,
+          },
+          action: {
+            type: auditData.action,
+            resource: auditData.resource,
+            resourceId: auditData.resourceId,
+          },
+          request: {
+            ipAddress: auditData.ipAddress,
+            userAgent: auditData.userAgent,
+          },
+          result: {
+            status: auditData.status,
+            duration: auditData.duration,
+            errorMessage: auditData.errorMessage,
+          },
+          details: auditData.details,
+        };
+
         console.log('AUDIT_LOG:', JSON.stringify(logEntry));
       }
     } catch (error) {
