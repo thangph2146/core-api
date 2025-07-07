@@ -31,7 +31,6 @@ import {
 import {
 	CreateBlogDto,
 	UpdateBlogDto,
-	AdminBlogQueryDto,
 	BlogQueryDto,
 	BulkBlogOperationDto,
 	BulkDeleteResponseDto,
@@ -67,7 +66,7 @@ export class BlogController {
 		description: 'Danh sách blog',
 		type: BlogListResponseDto,
 	})
-	async findAll(@Query() query: AdminBlogQueryDto): Promise<BlogListResponseDto> {
+	async findAll(@Query() query: BlogQueryDto): Promise<BlogListResponseDto> {
 		return this.blogService.findAll(query);
 	}
 
@@ -98,7 +97,7 @@ export class BlogController {
 		description: 'Danh sách blog đã xóa',
 		type: BlogListResponseDto,
 	})
-	async findDeleted(@Query() query: AdminBlogQueryDto): Promise<BlogListResponseDto> {
+	async findDeleted(@Query() query: BlogQueryDto): Promise<BlogListResponseDto> {
 		const deletedQuery = { ...query, deleted: true };
 		return this.blogService.findAll(deletedQuery);
 	}

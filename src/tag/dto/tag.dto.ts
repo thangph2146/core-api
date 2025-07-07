@@ -143,36 +143,6 @@ export class TagQueryDto {
 	sortOrder?: SortOrder = SortOrder.DESC
 }
 
-export class AdminTagQueryDto extends TagQueryDto {
-	@ApiPropertyOptional({
-		description: 'Bao gồm thẻ đã xóa',
-		example: false,
-		default: false,
-	})
-	@IsOptional()
-	@Transform(({ value }) => {
-		if (value === 'true') return true
-		if (value === 'false') return false
-		return value
-	})
-	@IsBoolean()
-	includeDeleted?: boolean = false
-
-	@ApiPropertyOptional({
-		description: 'Chỉ lấy thẻ đã xóa',
-		example: false,
-		default: false,
-	})
-	@IsOptional()
-	@Transform(({ value }) => {
-		if (value === 'true') return true
-		if (value === 'false') return false
-		return value
-	})
-	@IsBoolean()
-	deleted?: boolean = false
-}
-
 // =============================================================================
 // BULK OPERATION DTOs
 // =============================================================================

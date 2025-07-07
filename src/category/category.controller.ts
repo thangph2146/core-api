@@ -11,7 +11,6 @@ import {
 	HttpCode,
 	HttpStatus,
 	UseGuards,
-	NotFoundException,
 } from '@nestjs/common'
 import {
 	ApiTags,
@@ -30,7 +29,6 @@ import {
 	CreateCategoryDto,
 	UpdateCategoryDto,
 	CategoryQueryDto,
-	AdminCategoryQueryDto,
 	BulkCategoryOperationDto,
 	BulkDeleteResponseDto,
 	BulkRestoreResponseDto,
@@ -64,7 +62,7 @@ export class CategoryController {
 		description: 'Danh sách danh mục',
 		type: CategoryListResponseDto,
 	})
-	async findAll(@Query() query: AdminCategoryQueryDto): Promise<CategoryListResponseDto> {
+	async findAll(@Query() query: CategoryQueryDto): Promise<CategoryListResponseDto> {
 		return this.categoryService.findAll(query)
 	}
 
@@ -95,7 +93,7 @@ export class CategoryController {
 		description: 'Danh sách danh mục đã xóa',
 		type: CategoryListResponseDto,
 	})
-	async findDeleted(@Query() query: AdminCategoryQueryDto): Promise<CategoryListResponseDto> {
+	async findDeleted(@Query() query: CategoryQueryDto): Promise<CategoryListResponseDto> {
 		const deletedQuery = { ...query, deleted: true }
 		return this.categoryService.findAll(deletedQuery)
 	}

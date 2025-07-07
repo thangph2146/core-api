@@ -188,36 +188,6 @@ export class CategoryQueryDto {
   sortOrder?: SortOrder = SortOrder.DESC;
 }
 
-export class AdminCategoryQueryDto extends CategoryQueryDto {
-  @ApiPropertyOptional({
-    description: 'Bao gồm danh mục đã xóa',
-    example: false,
-    default: false,
-  })
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
-  @IsBoolean()
-  includeDeleted?: boolean = false;
-
-  @ApiPropertyOptional({
-    description: 'Chỉ lấy danh mục đã xóa',
-    example: false,
-    default: false,
-  })
-  @IsOptional()
-  @Transform(({ value }) => {
-    if (value === 'true') return true;
-    if (value === 'false') return false;
-    return value;
-  })
-  @IsBoolean()
-  deleted?: boolean = false;
-}
-
 // =============================================================================
 // BULK OPERATION DTOs
 // =============================================================================

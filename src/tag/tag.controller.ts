@@ -11,7 +11,6 @@ import {
 	UseGuards,
 	HttpCode,
 	HttpStatus,
-	NotFoundException,
 } from '@nestjs/common'
 import {
 	ApiTags,
@@ -19,7 +18,6 @@ import {
 	ApiResponse,
 	ApiBearerAuth,
 	ApiParam,
-	ApiQuery,
 } from '@nestjs/swagger'
 import { TagService } from './tag.service'
 import {
@@ -30,7 +28,6 @@ import {
 	CreateTagDto,
 	UpdateTagDto,
 	TagQueryDto,
-	AdminTagQueryDto,
 	BulkTagOperationDto,
 	BulkDeleteResponseDto,
 	BulkRestoreResponseDto,
@@ -64,7 +61,7 @@ export class TagController {
 		description: 'Danh sách thẻ',
 		type: TagListResponseDto,
 	})
-	async findAll(@Query() query: AdminTagQueryDto): Promise<TagListResponseDto> {
+	async findAll(@Query() query: TagQueryDto): Promise<TagListResponseDto> {
 		return this.tagService.findAll(query)
 	}
 
@@ -95,7 +92,7 @@ export class TagController {
 		description: 'Danh sách thẻ đã xóa',
 		type: TagListResponseDto,
 	})
-	async findDeleted(@Query() query: AdminTagQueryDto): Promise<TagListResponseDto> {
+	async findDeleted(@Query() query: TagQueryDto): Promise<TagListResponseDto> {
 		const deletedQuery = { ...query, deleted: true }
 		return this.tagService.findAll(deletedQuery)
 	}
