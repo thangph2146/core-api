@@ -320,6 +320,50 @@ export class UserController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
   ): Promise<UserResponseDto> {
+    // ENHANCED LOGGING - Debug payload format issue
+    this.logger.log(`🔍 CONTROLLER UPDATE - Raw request details:`, {
+      userId: id,
+      method: 'PATCH',
+      endpoint: `/api/users/${id}`,
+      timestamp: new Date().toISOString(),
+      bodyReceived: {
+        type: typeof updateUserDto,
+        isObject: typeof updateUserDto === 'object' && updateUserDto !== null,
+        isArray: Array.isArray(updateUserDto),
+        keys: updateUserDto && typeof updateUserDto === 'object' ? Object.keys(updateUserDto) : 'N/A',
+        hasActionProperty: updateUserDto && typeof updateUserDto === 'object' && 'action' in updateUserDto,
+        hasPayloadProperty: updateUserDto && typeof updateUserDto === 'object' && 'payload' in updateUserDto,
+        rawPayload: JSON.stringify(updateUserDto, null, 2)
+      }
+    });
+
+    // Check if we received the wrong format (action/payload wrapper)
+    if (updateUserDto && typeof updateUserDto === 'object' && 'action' in updateUserDto && 'payload' in updateUserDto) {
+      this.logger.error(`🚨 DETECTED WRONG FORMAT - Frontend sent action/payload wrapper:`, {
+        userId: id,
+        wrongFormat: updateUserDto,
+        action: (updateUserDto as any).action,
+        payload: (updateUserDto as any).payload,
+        fix: 'Frontend should send UpdateUserDto directly, not wrapped in action/payload'
+      });
+      
+      // Extract the actual payload if it's wrapped (temporary fix)
+      const actualPayload = (updateUserDto as any).payload;
+      if (actualPayload && typeof actualPayload === 'object') {
+        this.logger.log(`🔧 TEMPORARY FIX - Extracting payload from wrapper:`, {
+          userId: id,
+          extractedPayload: actualPayload
+        });
+        return this.userService.update(id, actualPayload as UpdateUserDto);
+      }
+    }
+
+    // Normal processing for correct format
+    this.logger.log(`✅ CORRECT FORMAT - Processing UpdateUserDto directly:`, {
+      userId: id,
+      updateDto: updateUserDto
+    });
+
     return this.userService.update(id, updateUserDto);
   }
 

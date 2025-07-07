@@ -737,26 +737,60 @@ export class UserService {
     const { email, roleId, ...userData } = updateUserDto;
 
     try {
-      // Check if user exists
+      // Enhanced debug logging để trace roleId issue
+      this.logger.log(`🔄 Starting user update process for user ${id}`);
+      this.logger.log(`📥 Received updateUserDto:`, JSON.stringify({
+        originalDto: updateUserDto,
+        extractedEmail: email,
+        extractedRoleId: roleId,
+        roleIdType: typeof roleId,
+        roleIdValue: roleId,
+        hasRoleIdProperty: 'roleId' in updateUserDto,
+        roleIdUndefined: roleId === undefined,
+        roleIdNull: roleId === null,
+        userData
+      }, null, 2));
+
+      // Check if user exists và log current state
       const existingUser = await this.prisma.user.findUnique({
         where: { id },
+        include: {
+          role: {
+            select: {
+              id: true,
+              name: true,
+              description: true,
+            },
+          },
+        },
       });
 
       if (!existingUser) {
         throw new NotFoundException('User not found');
       }
 
+      this.logger.log(`👤 Current user state:`, JSON.stringify({
+        userId: existingUser.id,
+        currentEmail: existingUser.email,
+        currentRoleId: existingUser.roleId,
+        currentRoleName: existingUser.role?.name,
+        willUpdateEmail: email && email !== existingUser.email,
+        willUpdateRoleId: roleId !== undefined && roleId !== existingUser.roleId
+      }, null, 2));
+
       // Validate email uniqueness if email is being updated
       if (email && email !== existingUser.email) {
         await this.validateEmailUnique(email, id);
+        this.logger.log(`✅ Email validation passed for: ${email}`);
       }
 
       // Validate role if provided
       if (roleId) {
         await this.validateRole(roleId);
+        this.logger.log(`✅ Role validation passed for roleId: ${roleId}`);
       }
 
-      // Update user data conditionally
+      // Build update data conditionally với detailed logging
       const updateData: any = {
         ...userData,
         updatedAt: new Date(),
@@ -764,26 +798,62 @@ export class UserService {
 
       if (email) {
         updateData.email = email.toLowerCase();
+        this.logger.log(`📧 Will update email: ${existingUser.email} → ${updateData.email}`);
       }
 
       if (roleId !== undefined) {
         updateData.roleId = roleId;
+        this.logger.log(`👑 Will update roleId: ${existingUser.roleId} → ${updateData.roleId}`);
       }
 
-      // Update user
-      const user = await this.prisma.user.update({
-        where: { id },
-        data: updateData,
-        include: DEFAULT_INCLUDES,
+      this.logger.log(`🔧 Final update data before database operation:`, JSON.stringify(updateData, null, 2));
+
+      // Log before database update
+      this.logger.log(`💾 Executing database update for user ${id}...`);
+
+      // Update user với transaction để ensure consistency
+      const user = await this.prisma.$transaction(async (prisma) => {
+        // First, update the user
+        const updatedUser = await prisma.user.update({
+          where: { id },
+          data: updateData,
+          include: DEFAULT_INCLUDES,
+        });
+
+        // Log immediately after update trong transaction
+        this.logger.log(`✅ Database update completed. Updated user:`, JSON.stringify({
+          userId: updatedUser.id,
+          updatedEmail: updatedUser.email,
+          updatedRoleId: updatedUser.roleId,
+          updatedRoleName: updatedUser.role?.name,
+          updatedAt: updatedUser.updatedAt
+        }, null, 2));
+
+        return updatedUser;
       });
 
-      this.logger.log(`User updated: ${user.email} (ID: ${user.id})`);
+      // Final log với response data
+      this.logger.log(`🎉 User update completed successfully:`, JSON.stringify({
+        userId: user.id,
+        originalRoleId: existingUser.roleId,
+        requestedRoleId: roleId,
+        finalRoleId: user.roleId,
+        success: user.roleId === roleId,
+        email: user.email,
+        roleName: user.role?.name
+      }, null, 2));
+
       return this.formatUserResponse(user);
     } catch (error) {
       if (error instanceof NotFoundException || error instanceof ConflictException) {
         throw error;
       }
-      this.logger.error(`Error updating user ${id}:`, error);
+      this.logger.error(`❌ Error updating user ${id}:`, {
+        error: error.message,
+        stack: error.stack,
+        updateUserDto,
+        userId: id
+      });
       throw new InternalServerErrorException('Failed to update user');
     }
   }
