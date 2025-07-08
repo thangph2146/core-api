@@ -159,6 +159,20 @@ export class CategoryQueryDto {
   type?: CategoryType;
 
   @ApiPropertyOptional({
+    description: 'Bao gồm danh mục đã xóa',
+    example: false,
+    default: false,
+  })
+  @IsOptional()
+  @Transform(({ value }) => {
+    if (value === 'true') return true;
+    if (value === 'false') return false;
+    return value;
+  })
+  @IsBoolean()
+  deleted?: boolean;
+
+  @ApiPropertyOptional({
     description: 'Từ khóa tìm kiếm',
     example: 'công nghệ',
   })

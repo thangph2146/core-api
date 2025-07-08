@@ -256,7 +256,7 @@ export class TagController {
 	@ApiResponse({ status: 200, description: 'Xóa thành công' })
 	@ApiResponse({ status: 404, description: 'Không tìm thấy thẻ' })
 	async remove(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
-		await this.tagService.delete(id)
+		await this.tagService.remove(id)
 		return { message: 'Tag deleted successfully' }
 	}
 

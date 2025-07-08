@@ -19,6 +19,9 @@ import {
 	ApiBearerAuth,
 	ApiParam,
 	ApiQuery,
+	ApiOkResponse,
+	ApiNoContentResponse,
+	ApiNotFoundResponse,
 } from '@nestjs/swagger'
 import { CategoryService } from './category.service'
 import {
@@ -37,6 +40,7 @@ import {
 	CategoryResponseDto,
 	CategoryStatsDto,
 	CategoryOptionDto,
+	CategoryType,
 } from './dto/category.dto'
 import { AuthGuard } from '../auth/auth.guard'
 
@@ -114,6 +118,9 @@ export class CategoryController {
 		return this.categoryService.getStats()
 	}
 
+	/**
+	 * Get category options for dropdowns/select
+	 */
 	@Get('options')
 	@UseGuards(AuthGuard)
 	@CrudPermissions.Categories.Read()
@@ -127,8 +134,8 @@ export class CategoryController {
 		description: 'Danh sách tùy chọn danh mục',
 		type: [CategoryOptionDto],
 	})
-	async getOptions(@Query('type') type?: string): Promise<CategoryOptionDto[]> {
-		return this.categoryService.getOptions(type)
+	getOptions(@Query('type') type?: string) {
+		return this.categoryService.getOptions(type as CategoryType)
 	}
 
 	// =============================================================================
@@ -268,7 +275,11 @@ export class CategoryController {
 		return this.categoryService.update(id, updateCategoryDto) as any
 	}
 
+	/**
+	 * Soft delete a category by ID
+	 */
 	@Delete(':id')
+	@HttpCode(HttpStatus.NO_CONTENT)
 	@UseGuards(AuthGuard)
 	@CrudPermissions.Categories.Delete()
 	@ApiOperation({
@@ -276,11 +287,10 @@ export class CategoryController {
 		description: 'Xóa mềm một danh mục (có thể khôi phục)',
 	})
 	@ApiParam({ name: 'id', description: 'ID danh mục', type: Number })
-	@ApiResponse({ status: 200, description: 'Xóa thành công' })
-	@ApiResponse({ status: 404, description: 'Không tìm thấy danh mục' })
-	async remove(@Param('id', ParseIntPipe) id: number): Promise<{ message: string }> {
-		await this.categoryService.delete(id)
-		return { message: 'Category deleted successfully' }
+	@ApiNoContentResponse({ description: 'Category deleted successfully' })
+	@ApiNotFoundResponse({ description: 'Category not found' })
+	async deleteCategory(@Param('id', ParseIntPipe) id: number): Promise<void> {
+		await this.categoryService.remove(id)
 	}
 
 	@Post(':id/restore')
