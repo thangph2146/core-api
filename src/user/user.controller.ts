@@ -33,6 +33,7 @@ import { UserService } from './user.service';
 import {
   CreateUserDto,
   UpdateUserDto,
+  UpdateProfileDto,
   AdminUserQueryDto,
   UserQueryDto,
   UserResponseDto,
@@ -256,6 +257,67 @@ export class UserController {
   })
   async bulkPermanentDelete(@Body() body: BulkUserOperationDto): Promise<BulkPermanentDeleteResponseDto> {
     return this.userService.bulkPermanentDelete(body.userIds);
+  }
+
+  // =============================================================================
+  // PROFILE MANAGEMENT
+  // =============================================================================
+
+  @Get('profile/me')
+  @UseGuards(AuthGuard)
+  @ApiOperation({
+    summary: 'Lấy thông tin profile của user hiện tại',
+    description: 'Lấy thông tin chi tiết của user đang đăng nhập',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Thông tin profile',
+    type: UserResponseDto,
+  })
+  async getMyProfile(@CurrentUser() currentUser: any): Promise<UserResponseDto> {
+    const user = await this.userService.findOne(currentUser.id);
+    if (!user) {
+      throw new NotFoundException('Không tìm thấy thông tin người dùng');
+    }
+    return user;
+  }
+
+  @Patch('profile/me')
+  @UseGuards(AuthGuard)
+  @ApiOperation({
+    summary: 'Cập nhật thông tin profile của tôi',
+    description: 'Cập nhật thông tin profile của user đang đăng nhập',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Profile đã được cập nhật thành công',
+    type: UserResponseDto,
+  })
+  @ApiResponse({ status: 404, description: 'Không tìm thấy người dùng' })
+  @ApiResponse({ status: 409, description: 'Email đã tồn tại' })
+  @ApiResponse({ status: 500, description: 'Lỗi server' })
+  async updateMyProfile(
+    @CurrentUser() currentUser: any,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ): Promise<UserResponseDto> {
+    return this.userService.updateProfile(currentUser.id, updateProfileDto);
+  }
+
+  @Post('profile/me/change-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AuthGuard)
+  @ApiOperation({
+    summary: 'Thay đổi mật khẩu của user hiện tại',
+    description: 'Thay đổi mật khẩu của user đang đăng nhập',
+  })
+  @ApiResponse({ status: 200, description: 'Thay đổi mật khẩu thành công' })
+  @ApiResponse({ status: 400, description: 'Mật khẩu hiện tại không chính xác' })
+  async changeMyPassword(
+    @CurrentUser() currentUser: any,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ): Promise<{ message: string }> {
+    await this.userService.changePassword(currentUser.id, changePasswordDto);
+    return { message: 'Password changed successfully' };
   }
 
   // =============================================================================

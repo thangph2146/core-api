@@ -12,6 +12,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   CreateUserDto,
   UpdateUserDto,
+  UpdateProfileDto,
   AdminUserQueryDto,
   UserQueryDto,
   UserResponseDto,
@@ -855,6 +856,98 @@ export class UserService {
         userId: id
       });
       throw new InternalServerErrorException('Failed to update user');
+    }
+  }
+
+  /**
+   * Update user profile
+   */
+  async updateProfile(id: number, updateProfileDto: UpdateProfileDto): Promise<UserResponseDto> {
+    const { name, email, avatarUrl, bio, phone, socialLinks } = updateProfileDto;
+
+    try {
+      this.logger.log(`🔄 Starting profile update for user ${id}`);
+      this.logger.log(`📥 Received profile data:`, JSON.stringify(updateProfileDto, null, 2));
+
+      // Check if user exists
+      const existingUser = await this.prisma.user.findUnique({
+        where: { id },
+        include: {
+          profile: true,
+        },
+      });
+
+      if (!existingUser) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Validate email uniqueness if email is being updated
+      if (email && email !== existingUser.email) {
+        await this.validateEmailUnique(email, id);
+        this.logger.log(`✅ Email validation passed for: ${email}`);
+      }
+
+      // Update user và profile trong transaction
+      const updatedUser = await this.prisma.$transaction(async (prisma) => {
+        // Update user fields (name, email, avatarUrl)
+        const userUpdateData: any = {
+          updatedAt: new Date(),
+        };
+
+        if (name !== undefined) userUpdateData.name = name;
+        if (email !== undefined) userUpdateData.email = email.toLowerCase();
+        if (avatarUrl !== undefined) userUpdateData.avatarUrl = avatarUrl;
+
+        const user = await prisma.user.update({
+          where: { id },
+          data: userUpdateData,
+        });
+
+        // Update or create profile
+        const profileUpdateData: any = {
+          updatedAt: new Date(),
+        };
+
+        if (bio !== undefined) profileUpdateData.bio = bio;
+        if (phone !== undefined) profileUpdateData.phone = phone;
+        if (avatarUrl !== undefined) profileUpdateData.avatarUrl = avatarUrl;
+        if (socialLinks !== undefined) profileUpdateData.socialLinks = socialLinks;
+
+        if (existingUser.profile) {
+          // Update existing profile
+          await prisma.userProfile.update({
+            where: { userId: id },
+            data: profileUpdateData,
+          });
+        } else {
+          // Create new profile
+          await prisma.userProfile.create({
+            data: {
+              userId: id,
+              ...profileUpdateData,
+            },
+          });
+        }
+
+        // Return updated user with all relations
+        return await prisma.user.findUnique({
+          where: { id },
+          include: DETAILED_INCLUDES,
+        });
+      });
+
+      this.logger.log(`✅ Profile updated successfully for user ${id}`);
+      return this.formatUserResponse(updatedUser!);
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof ConflictException) {
+        throw error;
+      }
+      this.logger.error(`❌ Error updating profile for user ${id}:`, {
+        error: error.message,
+        stack: error.stack,
+        updateProfileDto,
+      });
+      throw new InternalServerErrorException('Failed to update profile');
     }
   }
 

@@ -932,3 +932,47 @@ export class UserStatsDto {
   @ApiProperty({ description: 'Số người dùng mới (30 ngày)', example: 12 })
   recentUsers: number;
 }
+
+/**
+ * DTO for updating user profile
+ * Specifically for profile-related fields
+ */
+export class UpdateProfileDto {
+  @ApiPropertyOptional({ description: 'Tên đầy đủ của người dùng' })
+  @IsOptional()
+  @IsString({ message: 'Tên phải là chuỗi ký tự' })
+  @MinLength(2, { message: 'Tên phải có ít nhất 2 ký tự' })
+  @MaxLength(100, { message: 'Tên không được vượt quá 100 ký tự' })
+  @Transform(({ value }) => value?.trim())
+  name?: string;
+
+  @ApiPropertyOptional({ description: 'Email người dùng' })
+  @IsOptional()
+  @IsEmail({}, { message: 'Email không đúng định dạng' })
+  @Transform(({ value }) => value?.toLowerCase().trim())
+  email?: string;
+
+  @ApiPropertyOptional({ description: 'URL ảnh đại diện' })
+  @IsOptional()
+  @IsUrl({}, { message: 'Avatar URL không hợp lệ' })
+  avatarUrl?: string;
+
+  @ApiPropertyOptional({ description: 'Bio mô tả' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(1000, { message: 'Bio không được vượt quá 1000 ký tự' })
+  @Transform(({ value }) => (value === '' ? null : value))
+  bio?: string;
+
+  @ApiPropertyOptional({ description: 'Số điện thoại', example: '0901234567' })
+  @IsOptional()
+  @IsString({ message: 'Số điện thoại phải là chuỗi ký tự' })
+  @Matches(/^[0-9]{10,11}$/, { message: 'Số điện thoại không hợp lệ' })
+  @Transform(({ value }) => (value === '' ? null : value))
+  phone?: string;
+
+  @ApiPropertyOptional({ description: 'Liên kết mạng xã hội (JSON object)' })
+  @IsOptional()
+  @IsObject({ message: 'Social links phải là object JSON' })
+  socialLinks?: Record<string, any>;
+}
